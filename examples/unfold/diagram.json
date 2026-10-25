@@ -1,0 +1,1037 @@
+{
+ "meta": {
+  "title": "Unfold",
+  "subtitle": "This repository, mapped by its own skill",
+  "summary": "Unfold turns a codebase into a zoomable map: Claude reads the code in cheap stages, writes the diagram data, and a single HTML page lets anyone explore and edit it.",
+  "glossary": [
+   {
+    "term": "Level",
+    "def": "One diagram; a node can open into another"
+   },
+   {
+    "term": "Scan",
+    "def": "Cheap repo map: entry points, I/O, imports"
+   },
+   {
+    "term": "Outline",
+    "def": "Every function's signature, without its body"
+   },
+   {
+    "term": "Peek",
+    "def": "Reads only the lines around a reference"
+   },
+   {
+    "term": "Engine",
+    "def": "The HTML template that draws and edits"
+   }
+  ]
+ },
+ "root": {
+  "type": "architecture",
+  "caption": "A codebase goes in; a zoomable, editable map comes out.",
+  "nodes": [
+   {
+    "id": "codebase",
+    "label": "Your codebase",
+    "shape": "parallelogram",
+    "role": "input",
+    "color": "slate",
+    "note": "Any repository. The scanner knows Python, JS/TS, Go, Rust, C/C++, Java and ROS 2 conventions."
+   },
+   {
+    "id": "request",
+    "label": "Your request",
+    "shape": "parallelogram",
+    "role": "input",
+    "color": "rose",
+    "note": "What to map, for whom, and which part matters most. Click to follow one request end to end.",
+    "children": {
+     "type": "sequence",
+     "caption": "One request, end to end: map cheaply, read only what matters, then build.",
+     "nodes": [
+      {
+       "id": "you",
+       "label": "You",
+       "icon": "user",
+       "color": "rose"
+      },
+      {
+       "id": "claude",
+       "label": "Claude",
+       "icon": "spark",
+       "color": "violet"
+      },
+      {
+       "id": "scan",
+       "label": "scan_repo.py",
+       "icon": "search"
+      },
+      {
+       "id": "peek",
+       "label": "peek.py",
+       "icon": "eye"
+      },
+      {
+       "id": "repo",
+       "label": "Codebase",
+       "shape": "cylinder",
+       "color": "slate"
+      },
+      {
+       "id": "cli",
+       "label": "unfold.py",
+       "icon": "terminal"
+      },
+      {
+       "id": "browser",
+       "label": "Browser",
+       "icon": "monitor",
+       "color": "rose"
+      }
+     ],
+     "edges": [
+      {
+       "from": "you",
+       "to": "claude",
+       "label": "Diagram this repo"
+      },
+      {
+       "from": "claude",
+       "to": "scan",
+       "label": "scan REPO"
+      },
+      {
+       "from": "scan",
+       "to": "claude",
+       "label": "map + read-first list",
+       "style": "dashed"
+      },
+      {
+       "from": "claude",
+       "to": "scan",
+       "label": "--outline"
+      },
+      {
+       "from": "scan",
+       "to": "claude",
+       "label": "symbol map",
+       "style": "dashed"
+      },
+      {
+       "from": "claude",
+       "to": "peek",
+       "label": "file:symbol refs"
+      },
+      {
+       "from": "peek",
+       "to": "repo",
+       "label": "read slices"
+      },
+      {
+       "from": "peek",
+       "to": "claude",
+       "label": "evidence",
+       "style": "dashed"
+      },
+      {
+       "from": "claude",
+       "to": "claude",
+       "label": "choose types, write JSON"
+      },
+      {
+       "from": "claude",
+       "to": "cli",
+       "label": "check, build"
+      },
+      {
+       "from": "cli",
+       "to": "claude",
+       "label": "page.html",
+       "style": "dashed"
+      },
+      {
+       "from": "claude",
+       "to": "you",
+       "label": "published page",
+       "style": "dashed"
+      }
+     ]
+    }
+   },
+   {
+    "id": "scanner",
+    "label": "scan_repo.py",
+    "icon": "search",
+    "color": "blue",
+    "source": [
+     "skill/unfold/scripts/scan_repo.py"
+    ],
+    "note": "Maps the repo cheaply: entry points, inputs and outputs, imports, and a symbol outline with no function bodies.",
+    "children": {
+     "type": "process",
+     "caption": "Every code line is checked against entry-point and I/O patterns.",
+     "nodes": [
+      {
+       "id": "path",
+       "label": "Repository path",
+       "shape": "pill",
+       "role": "input"
+      },
+      {
+       "id": "walk",
+       "label": "Walk files, skip build and vendor dirs",
+       "source": [
+        "scan_repo.py:walk"
+       ]
+      },
+      {
+       "id": "manifests",
+       "label": "Read manifests",
+       "shape": "hexagon",
+       "source": [
+        "scan_repo.py:manifests"
+       ],
+       "note": "package.json, pyproject, Cargo.toml, go.mod, CMakeLists.txt, package.xml, launch files, Dockerfile, compose, Makefile."
+      },
+      {
+       "id": "line",
+       "label": "Next code line",
+       "source": [
+        "scan_repo.py:scan"
+       ]
+      },
+      {
+       "id": "match",
+       "label": "Matches a pattern?",
+       "shape": "diamond",
+       "color": "amber",
+       "source": [
+        "scan_repo.py:SIGNALS",
+        "scan_repo.py:ENTRY_RES"
+       ]
+      },
+      {
+       "id": "record",
+       "label": "Record kind + file:line"
+      },
+      {
+       "id": "imports",
+       "label": "Resolve internal imports",
+       "source": [
+        "scan_repo.py:scan"
+       ],
+       "note": "Python via ast, JS/TS via relative import paths, aggregated per top-level folder."
+      },
+      {
+       "id": "report",
+       "label": "Markdown / JSON report",
+       "shape": "pill",
+       "role": "output",
+       "source": [
+        "scan_repo.py:to_markdown"
+       ]
+      }
+     ],
+     "edges": [
+      {
+       "from": "path",
+       "to": "walk"
+      },
+      {
+       "from": "walk",
+       "to": "manifests"
+      },
+      {
+       "from": "manifests",
+       "to": "line"
+      },
+      {
+       "from": "line",
+       "to": "match"
+      },
+      {
+       "from": "match",
+       "to": "record",
+       "label": "yes"
+      },
+      {
+       "from": "record",
+       "to": "line",
+       "label": "next",
+       "style": "dashed"
+      },
+      {
+       "from": "match",
+       "to": "imports",
+       "label": "all lines read"
+      },
+      {
+       "from": "imports",
+       "to": "report"
+      }
+     ]
+    }
+   },
+   {
+    "id": "peek",
+    "label": "peek.py",
+    "icon": "eye",
+    "color": "blue",
+    "source": [
+     "skill/unfold/scripts/peek.py"
+    ],
+    "note": "Reads only the lines around each file:line or file:symbol reference, within a fixed line budget."
+   },
+   {
+    "id": "claude",
+    "label": "Claude + SKILL.md",
+    "icon": "spark",
+    "color": "violet",
+    "source": [
+     "skill/unfold/SKILL.md",
+     "skill/unfold/references/reading-code.md",
+     "skill/unfold/references/schema.md"
+    ],
+    "children": {
+     "type": "process",
+     "caption": "Read in stages, then give every part the diagram type its code calls for.",
+     "nodes": [
+      {
+       "id": "in",
+       "label": "Request + repo",
+       "shape": "pill",
+       "role": "input"
+      },
+      {
+       "id": "map",
+       "label": "Map the repo",
+       "source": [
+        "scan_repo.py:scan"
+       ]
+      },
+      {
+       "id": "shape",
+       "label": "Outline the key folders",
+       "source": [
+        "scan_repo.py:outline"
+       ]
+      },
+      {
+       "id": "evid",
+       "label": "Peek at every I/O signal",
+       "source": [
+        "peek.py:resolve"
+       ]
+      },
+      {
+       "id": "bound",
+       "label": "Fix inputs and outputs"
+      },
+      {
+       "id": "over",
+       "label": "Draw the overview"
+      },
+      {
+       "id": "kind",
+       "label": "What is inside this part?",
+       "shape": "diamond",
+       "color": "amber"
+      },
+      {
+       "id": "t-arch",
+       "label": "Architecture"
+      },
+      {
+       "id": "t-proc",
+       "label": "Process"
+      },
+      {
+       "id": "t-seq",
+       "label": "Sequence"
+      },
+      {
+       "id": "t-state",
+       "label": "State machine"
+      },
+      {
+       "id": "t-data",
+       "label": "Data model"
+      },
+      {
+       "id": "write",
+       "label": "Write diagram.json with sources"
+      },
+      {
+       "id": "ok",
+       "label": "Check passes?",
+       "shape": "diamond",
+       "color": "amber"
+      },
+      {
+       "id": "fix",
+       "label": "Fix what it reports"
+      },
+      {
+       "id": "out",
+       "label": "diagram.json",
+       "shape": "pill",
+       "role": "output"
+      }
+     ],
+     "edges": [
+      {
+       "from": "in",
+       "to": "map"
+      },
+      {
+       "from": "map",
+       "to": "shape"
+      },
+      {
+       "from": "shape",
+       "to": "evid"
+      },
+      {
+       "from": "evid",
+       "to": "bound"
+      },
+      {
+       "from": "bound",
+       "to": "over"
+      },
+      {
+       "from": "over",
+       "to": "kind"
+      },
+      {
+       "from": "kind",
+       "to": "t-arch",
+       "label": "parts"
+      },
+      {
+       "from": "kind",
+       "to": "t-proc",
+       "label": "steps"
+      },
+      {
+       "from": "kind",
+       "to": "t-seq",
+       "label": "calls"
+      },
+      {
+       "from": "kind",
+       "to": "t-state",
+       "label": "modes"
+      },
+      {
+       "from": "kind",
+       "to": "t-data",
+       "label": "schemas"
+      },
+      {
+       "from": "t-arch",
+       "to": "write"
+      },
+      {
+       "from": "t-proc",
+       "to": "write"
+      },
+      {
+       "from": "t-seq",
+       "to": "write"
+      },
+      {
+       "from": "t-state",
+       "to": "write"
+      },
+      {
+       "from": "t-data",
+       "to": "write"
+      },
+      {
+       "from": "write",
+       "to": "ok"
+      },
+      {
+       "from": "ok",
+       "to": "out",
+       "label": "yes"
+      },
+      {
+       "from": "ok",
+       "to": "fix",
+       "label": "no"
+      },
+      {
+       "from": "fix",
+       "to": "write",
+       "style": "dashed"
+      }
+     ]
+    }
+   },
+   {
+    "id": "diagram",
+    "label": "diagram.json",
+    "shape": "document",
+    "color": "teal",
+    "note": "The whole map as data: levels, nodes, edges, groups, roles, sources and media. Click to see its model.",
+    "children": {
+     "type": "data",
+     "caption": "The diagram file: levels nest through a node's children.",
+     "nodes": [
+      {
+       "id": "Diagram",
+       "label": "Diagram",
+       "fields": [
+        "meta.title: str",
+        "meta.summary: str",
+        "meta.glossary: list",
+        "root: Level FK"
+       ]
+      },
+      {
+       "id": "Level",
+       "label": "Level",
+       "fields": [
+        "type: architecture|process|…",
+        "caption: str",
+        "direction: LR|TB",
+        "nodes: Node[]",
+        "edges: Edge[]"
+       ]
+      },
+      {
+       "id": "Node",
+       "label": "Node",
+       "fields": [
+        "id: str PK",
+        "label: str",
+        "shape: str",
+        "role: input|output",
+        "source: str[]",
+        "children: Level FK"
+       ]
+      },
+      {
+       "id": "Edge",
+       "label": "Edge",
+       "fields": [
+        "from: Node FK",
+        "to: Node FK",
+        "label: str",
+        "style: flow|solid|dashed"
+       ]
+      },
+      {
+       "id": "Group",
+       "label": "Group",
+       "fields": [
+        "id: str PK",
+        "label: str",
+        "color: str"
+       ]
+      },
+      {
+       "id": "Media",
+       "label": "Media",
+       "fields": [
+        "src: str",
+        "type: image|video|embed",
+        "caption: str"
+       ]
+      }
+     ],
+     "edges": [
+      {
+       "from": "Diagram",
+       "to": "Level",
+       "label": "1 root"
+      },
+      {
+       "from": "Level",
+       "to": "Node",
+       "label": "1..*"
+      },
+      {
+       "from": "Level",
+       "to": "Edge",
+       "label": "0..*"
+      },
+      {
+       "from": "Level",
+       "to": "Group",
+       "label": "0..*"
+      },
+      {
+       "from": "Node",
+       "to": "Media",
+       "label": "0..1"
+      },
+      {
+       "from": "Node",
+       "to": "Level",
+       "label": "children 0..1",
+       "style": "dashed"
+      }
+     ]
+    }
+   },
+   {
+    "id": "template",
+    "label": "Engine template",
+    "icon": "layers",
+    "color": "amber",
+    "source": [
+     "skill/unfold/assets/template.html"
+    ],
+    "note": "One self-contained HTML file: no framework, no build step.",
+    "children": {
+     "type": "architecture",
+     "caption": "The page is one file: data in a script block, an engine that draws and edits it.",
+     "nodes": [
+      {
+       "id": "block",
+       "label": "story-data block",
+       "shape": "document",
+       "role": "input",
+       "color": "teal"
+      },
+      {
+       "id": "normalize",
+       "label": "normalize()",
+       "icon": "check",
+       "color": "blue",
+       "source": [
+        "template.html:normalize",
+        "template.html:normLevel"
+       ],
+       "note": "Fills defaults and migrates v1 data."
+      },
+      {
+       "id": "layout",
+       "label": "Auto-layout",
+       "icon": "layers",
+       "color": "blue",
+       "source": [
+        "template.html:layoutLevel"
+       ],
+       "note": "Layered layout: break cycles, longest-path layers, barycentre ordering, one band per group."
+      },
+      {
+       "id": "render",
+       "label": "renderScene()",
+       "icon": "monitor",
+       "color": "blue",
+       "source": [
+        "template.html:renderScene",
+        "template.html:shapeSVG"
+       ]
+      },
+      {
+       "id": "camera",
+       "label": "Camera & zoom",
+       "icon": "target",
+       "color": "blue",
+       "source": [
+        "template.html:animateCam",
+        "template.html:zoomIn",
+        "template.html:zoomOut"
+       ]
+      },
+      {
+       "id": "trace",
+       "label": "Flow tracing",
+       "icon": "pulse",
+       "color": "blue",
+       "source": [
+        "template.html:traceSets",
+        "template.html:applyTrace"
+       ]
+      },
+      {
+       "id": "editor",
+       "label": "Editor",
+       "icon": "wrench",
+       "color": "violet",
+       "source": [
+        "template.html:onDown",
+        "template.html:renderToolbar"
+       ],
+       "children": {
+        "type": "process",
+        "caption": "Nest: collapse a selection into one module without losing its connections.",
+        "nodes": [
+         {
+          "id": "sel",
+          "label": "Selected nodes",
+          "shape": "pill",
+          "role": "input"
+         },
+         {
+          "id": "module",
+          "label": "Create module at their centre",
+          "source": [
+           "template.html:nestNodes"
+          ]
+         },
+         {
+          "id": "move",
+          "label": "Move nodes and inner edges inside"
+         },
+         {
+          "id": "cross",
+          "label": "Edge crosses the boundary?",
+          "shape": "diamond",
+          "color": "amber"
+         },
+         {
+          "id": "rewire",
+          "label": "Rewire to module, mark inner node In / Out"
+         },
+         {
+          "id": "keep",
+          "label": "Keep edge as it is"
+         },
+         {
+          "id": "done",
+          "label": "Module selected, label ready to type",
+          "shape": "pill",
+          "role": "output"
+         }
+        ],
+        "edges": [
+         {
+          "from": "sel",
+          "to": "module"
+         },
+         {
+          "from": "module",
+          "to": "move"
+         },
+         {
+          "from": "move",
+          "to": "cross"
+         },
+         {
+          "from": "cross",
+          "to": "rewire",
+          "label": "yes"
+         },
+         {
+          "from": "cross",
+          "to": "keep",
+          "label": "no"
+         },
+         {
+          "from": "rewire",
+          "to": "done"
+         },
+         {
+          "from": "keep",
+          "to": "done"
+         }
+        ]
+       }
+      },
+      {
+       "id": "persist",
+       "label": "Persistence",
+       "icon": "download",
+       "color": "teal",
+       "source": [
+        "template.html:markDirty",
+        "template.html:buildDocument",
+        "template.html:saveToPage"
+       ],
+       "note": "Edits survive a reload; Export downloads the page or its data; Save writes into a published artifact."
+      },
+      {
+       "id": "screen",
+       "label": "Interactive page",
+       "shape": "parallelogram",
+       "role": "output",
+       "color": "rose"
+      },
+      {
+       "id": "files",
+       "label": "Exported page / JSON",
+       "shape": "parallelogram",
+       "role": "output",
+       "color": "teal"
+      },
+      {
+       "id": "modes",
+       "label": "Interaction modes",
+       "icon": "flag",
+       "color": "violet",
+       "source": [
+        "template.html:setMode",
+        "template.html:startInline",
+        "template.html:openMedia"
+       ],
+       "note": "What the page is doing right now decides what a click means.",
+       "children": {
+        "type": "state",
+        "caption": "What a click means depends on the mode.",
+        "nodes": [
+         {
+          "id": "i",
+          "label": "",
+          "shape": "initial"
+         },
+         {
+          "id": "view",
+          "label": "Viewing"
+         },
+         {
+          "id": "media",
+          "label": "Viewing media"
+         },
+         {
+          "id": "edit",
+          "label": "Editing"
+         },
+         {
+          "id": "typing",
+          "label": "Typing a label"
+         }
+        ],
+        "edges": [
+         {
+          "from": "i",
+          "to": "view",
+          "label": "page opens"
+         },
+         {
+          "from": "view",
+          "to": "edit",
+          "label": "E"
+         },
+         {
+          "from": "edit",
+          "to": "view",
+          "label": "E"
+         },
+         {
+          "from": "view",
+          "to": "media",
+          "label": "click media"
+         },
+         {
+          "from": "media",
+          "to": "view",
+          "label": "Esc"
+         },
+         {
+          "from": "edit",
+          "to": "typing",
+          "label": "double-click"
+         },
+         {
+          "from": "typing",
+          "to": "edit",
+          "label": "Enter / Esc"
+         }
+        ]
+       }
+      }
+     ],
+     "edges": [
+      {
+       "from": "block",
+       "to": "normalize"
+      },
+      {
+       "from": "normalize",
+       "to": "layout"
+      },
+      {
+       "from": "layout",
+       "to": "render"
+      },
+      {
+       "from": "render",
+       "to": "screen",
+       "label": "SVG"
+      },
+      {
+       "from": "camera",
+       "to": "screen",
+       "label": "zoom",
+       "style": "solid"
+      },
+      {
+       "from": "trace",
+       "to": "render",
+       "label": "highlight",
+       "style": "solid"
+      },
+      {
+       "from": "editor",
+       "to": "render",
+       "label": "re-render"
+      },
+      {
+       "from": "editor",
+       "to": "persist",
+       "label": "edits"
+      },
+      {
+       "from": "persist",
+       "to": "files"
+      },
+      {
+       "from": "modes",
+       "to": "editor",
+       "label": "enables",
+       "style": "solid"
+      }
+     ]
+    }
+   },
+   {
+    "id": "build",
+    "label": "unfold.py build",
+    "icon": "terminal",
+    "color": "blue",
+    "source": [
+     "skill/unfold/scripts/unfold.py"
+    ],
+    "children": {
+     "type": "process",
+     "caption": "Nothing is written unless the data validates.",
+     "nodes": [
+      {
+       "id": "json",
+       "label": "diagram.json",
+       "shape": "pill",
+       "role": "input"
+      },
+      {
+       "id": "validate",
+       "label": "validate()",
+       "source": [
+        "unfold.py:validate"
+       ]
+      },
+      {
+       "id": "errs",
+       "label": "Any errors?",
+       "shape": "diamond",
+       "color": "amber"
+      },
+      {
+       "id": "fail",
+       "label": "Exit 1 with the error list",
+       "shape": "pill",
+       "role": "output",
+       "color": "rose"
+      },
+      {
+       "id": "embed",
+       "label": "embed() into the template",
+       "source": [
+        "unfold.py:embed"
+       ],
+       "note": "Escapes '<' so no label can close the script block."
+      },
+      {
+       "id": "html",
+       "label": "page.html",
+       "shape": "pill",
+       "role": "output"
+      }
+     ],
+     "edges": [
+      {
+       "from": "json",
+       "to": "validate"
+      },
+      {
+       "from": "validate",
+       "to": "errs"
+      },
+      {
+       "from": "errs",
+       "to": "fail",
+       "label": "yes"
+      },
+      {
+       "from": "errs",
+       "to": "embed",
+       "label": "no"
+      },
+      {
+       "from": "embed",
+       "to": "html"
+      }
+     ]
+    }
+   },
+   {
+    "id": "page",
+    "label": "Diagram page (.html)",
+    "shape": "document",
+    "role": "output",
+    "color": "rose",
+    "note": "Opens in any browser, offline. Click to see a level of this very map.",
+    "media": {
+     "src": "../../docs/images/process.png",
+     "caption": "A process level inside the map."
+    }
+   }
+  ],
+  "edges": [
+   {
+    "from": "codebase",
+    "to": "scanner",
+    "label": "files"
+   },
+   {
+    "from": "codebase",
+    "to": "peek",
+    "label": "slices"
+   },
+   {
+    "from": "peek",
+    "to": "claude",
+    "label": "evidence"
+   },
+   {
+    "from": "scanner",
+    "to": "claude",
+    "label": "scan report"
+   },
+   {
+    "from": "request",
+    "to": "claude"
+   },
+   {
+    "from": "claude",
+    "to": "diagram",
+    "label": "writes"
+   },
+   {
+    "from": "diagram",
+    "to": "build"
+   },
+   {
+    "from": "template",
+    "to": "build",
+    "label": "engine",
+    "style": "solid"
+   },
+   {
+    "from": "build",
+    "to": "page"
+   },
+   {
+    "from": "page",
+    "to": "diagram",
+    "label": "extract edits",
+    "style": "dashed"
+   }
+  ]
+ }
+}

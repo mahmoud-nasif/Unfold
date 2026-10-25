@@ -1,0 +1,8 @@
+schema_version: "1.1"
+name: extend-an-edited-page
+expected_outcome: |
+  The data is extracted from the provided page, the persist node inside the template level gets a
+  process child level with an input step, the debounced draft write, a decision on whether saving is
+  allowed and both outcomes as outputs; every pre-existing node is preserved and the rebuilt page validates.
+context:
+  scaffold_script: place-files.sh

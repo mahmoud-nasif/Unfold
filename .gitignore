@@ -1,0 +1,10 @@
+__pycache__/
+*.pyc
+.pytest_cache/
+dist/
+.venv/
+venv/
+*-workspace/
+skill/unfold/evals/results/
+test-results/
+.DS_Store

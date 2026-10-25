@@ -1,0 +1,10 @@
+schema_version: "1.1"
+name: diagram-a-codebase
+expected_outcome: |
+  Claude scans the orderly repository, reads the flagged files, and builds a page whose overview is an
+  architecture level with the HTTP request marked as input and the order response, database and carrier
+  call shown with correct directions. The worker opens into a process level (dequeue, call carrier,
+  decision on the response, retries, mark shipped), the API's create_order opens into a process with the
+  validation branch, nodes carry verbatim source references, and unfold.py check passes.
+context:
+  scaffold_script: place-files.sh

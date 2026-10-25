@@ -1,0 +1,4 @@
+schema_version: "1.1"
+name: asks-before-inventing
+expected_outcome: |
+  Claude does not build a page from invented content. It asks a short batch of questions about the project, the audience, the takeaway and where the hard part is, or asks for material such as the abstract or repository.

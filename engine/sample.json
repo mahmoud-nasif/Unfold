@@ -1,0 +1,111 @@
+{
+ "meta": {
+  "title": "Example system",
+  "subtitle": "Click a module to step inside"
+ },
+ "root": {
+  "type": "architecture",
+  "caption": "A request comes in, gets handled, and a response goes out.",
+  "nodes": [
+   {
+    "id": "req",
+    "label": "HTTP request",
+    "shape": "parallelogram",
+    "role": "input",
+    "color": "rose"
+   },
+   {
+    "id": "api",
+    "label": "API server",
+    "icon": "server",
+    "color": "blue",
+    "children": {
+     "type": "process",
+     "caption": "Each request is validated before it is handled.",
+     "nodes": [
+      {
+       "id": "start",
+       "label": "Request received",
+       "shape": "pill",
+       "role": "input"
+      },
+      {
+       "id": "valid",
+       "label": "Valid?",
+       "shape": "diamond",
+       "color": "amber"
+      },
+      {
+       "id": "handle",
+       "label": "Handle request"
+      },
+      {
+       "id": "reject",
+       "label": "Return 400"
+      },
+      {
+       "id": "done",
+       "label": "Send response",
+       "shape": "pill",
+       "role": "output"
+      }
+     ],
+     "edges": [
+      {
+       "from": "start",
+       "to": "valid"
+      },
+      {
+       "from": "valid",
+       "to": "handle",
+       "label": "yes"
+      },
+      {
+       "from": "valid",
+       "to": "reject",
+       "label": "no"
+      },
+      {
+       "from": "handle",
+       "to": "done"
+      },
+      {
+       "from": "reject",
+       "to": "done"
+      }
+     ]
+    }
+   },
+   {
+    "id": "db",
+    "label": "Database",
+    "shape": "cylinder",
+    "color": "teal"
+   },
+   {
+    "id": "res",
+    "label": "HTTP response",
+    "shape": "parallelogram",
+    "role": "output",
+    "color": "rose"
+   }
+  ],
+  "edges": [
+   {
+    "from": "req",
+    "to": "api"
+   },
+   {
+    "from": "api",
+    "to": "db",
+    "label": "query",
+    "arrow": "both",
+    "style": "solid"
+   },
+   {
+    "from": "api",
+    "to": "res"
+   }
+  ]
+ }
+}

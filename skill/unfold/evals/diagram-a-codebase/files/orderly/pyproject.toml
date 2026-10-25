@@ -1,0 +1,4 @@
+[project]
+name = "orderly"
+[project.scripts]
+orderly-worker = "orderly.worker.main:main"
