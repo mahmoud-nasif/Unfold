@@ -15,7 +15,7 @@ Thanks for helping. The project follows one rule: **if it's not a test, it's not
 
    > **Given** a node with an inner diagram, **when** the viewer presses Enter on it, **then** the camera zooms into that diagram.
 
-2. Turn each criterion into a test. Template or interaction behaviour goes in `tests/test_e2e_page.py`. Validation, build and packaging go in `tests/test_story_cli.py` or `tests/test_skill_package.py`.
+2. Turn each criterion into a test. Template or interaction behaviour goes in `tests/test_e2e_page.py`, or in `test_e2e_canvas.py` (linking, layout, routing, media), `test_e2e_teach.py` (search, tours, presentation) and `test_e2e_export.py` (exports and import). Validation, build and packaging go in `tests/test_story_cli.py`, `test_understands.py` or `tests/test_skill_package.py`; installers in `test_install.py`.
 3. Make the change.
 4. Run `make examples` if the template changed. CI fails when a built example is stale.
 5. Run `make test e2e`.
@@ -30,14 +30,18 @@ Thanks for helping. The project follows one rule: **if it's not a test, it's not
 
 - **Icon:** add it to `engine/icons.js` (24 × 24, stroke-only, in the compact `M…` / `c cx cy r` / `r x y w h rx` / `e cx cy rx ry` notation) and to `ICONS` in `scripts/unfold.py`.
 - **Shape:** add it to `SHAPES` and `SHAPE_ORDER` in `engine/engine.js`, give it a case in `shapeSVG`, `textBox` and `port`, and add it to `SHAPES` in `scripts/unfold.py`.
-- **Level type:** add it to `TYPE_NAMES` and `TYPE_HINTS`, decide its defaults in `defShape`, `defStyle` and `defArrow`, and add it to `LEVEL_TYPES` in `scripts/unfold.py`. Document when the skill should choose it in `references/reading-code.md`.
+- **Level type:** add it to `TYPE_NAMES` and `TYPE_HINTS`, decide its defaults in `defShape`, `defStyle`, `defArrow`, `levelDir` and `levelRoute`, give it a layout in `layoutAny` if layered isn't right, teach `mermaidLevel` to export it, and add it to `LEVEL_TYPES` in `scripts/unfold.py`. Add a level to `examples/types/`. Document when the skill should choose it in `references/reading-code.md`.
 - **Colour:** add `--c-<name>` for both themes and to `COLORS` in the template and in `scripts/unfold.py`.
 
 Document it in `references/schema.md`. Tests fail if the template and the CLI disagree.
 
+## Changing layout or routing
+
+`tests/fixtures/layout/` holds hard graphs (a fan-in hub, a long pipeline with skips and a loop, grouped services). `test_auto_layout_routes_no_edge_through_a_node` must keep passing. Look at the result too: build a page from each fixture and compare before and after screenshots, counting crossings and edges that lie on top of each other.
+
 ## Improving the scanner
 
-Add a fixture case to `tests/test_scan_repo.py` first (a few lines of real-looking code), then the pattern in `SIGNALS`. Prefer patterns that capture the *name* of what flows (route, topic, file), since that is what ends up on edge labels.
+Add a fixture case to `tests/test_scan_repo.py`, or a file to the multi-framework fixture `tests/fixtures/polyglot/` with a case in `tests/test_scan_frameworks.py`. Write the fixture first (a few lines of real-looking code), then the pattern in `SIGNALS`. Prefer patterns that capture the *name* of what flows (route, topic, file), since that is what ends up on edge labels.
 
 ## Adding an example
 
@@ -45,4 +49,4 @@ Create `examples/<name>/diagram.json`, then run `make examples`. Examples must b
 
 ## Releasing
 
-Update `CHANGELOG.md`, bump the version in the template's banner comment, commit, then `git tag vX.Y.Z && git push --tags`. The release workflow packages and publishes the skill.
+Update `CHANGELOG.md`, bump the version in the engine's banner comment and `VERSION`, `.claude-plugin/plugin.json`, `pyproject.toml` and `src/unfold_map/__init__.py` (a test checks they agree), commit, then `git tag vX.Y.Z && git push --tags`. The release workflow packages and publishes the skill.

@@ -2,22 +2,37 @@
 """unfold CLI: validate diagram data, build pages, and read them back.
 
     python unfold.py check   diagram.json
-    python unfold.py build   diagram.json page.html [--template PATH]
+    python unfold.py build   diagram.json page.html [--template PATH] [--repo PATH]
     python unfold.py extract page.html [diagram.json]
     python unfold.py outline diagram.json|page.html
+    python unfold.py drift   diagram.json|page.html --repo PATH [--json]
+    python unfold.py diff    old.json new.json [--json] [--page OUT.html]
+    python unfold.py merge   --base generated-old.json --ours edited.json --theirs generated-new.json -o OUT
 
 `check` and `build` exit 1 and list every error when the data is invalid.
 Warnings never fail; they point at things a reader would trip over.
+`build --repo` pins `meta.repo` (url, commit, root) from git so source links open
+the exact lines that were mapped.
 `extract` pulls the data out of a page someone edited in the browser.
 `outline` prints the nesting as an indented tree, for a quick structural review.
+`drift` checks every node `source` against the code and exits 1 if any file,
+symbol or line no longer matches (a symbol that moved is named with its new file).
+`diff` lists added, removed and changed nodes and edges; `--page` builds NEW with
+removed elements put back and every difference marked with a `diff` field.
+`merge` re-maps without losing hand edits: a field changed by a person is kept,
+everything else follows the new scan, and conflicts are listed.
 
 Standard library only, Python 3.8+.
 """
 import argparse
+import ast
+import copy
 import html
 import json
 import re
+import subprocess
 import sys
+from collections import Counter
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
@@ -32,17 +47,29 @@ spark target robot arm flask
 SHAPES = frozenset({
     "rounded", "rect", "pill", "diamond", "parallelogram", "cylinder", "document",
     "hexagon", "cloud", "circle", "triangle", "text", "table", "image", "initial", "final",
+    "class", "person", "node3d",
 })
 COLORS = frozenset({"blue", "teal", "amber", "rose", "violet", "slate", "neutral"})
-LEVEL_TYPES = frozenset({"architecture", "process", "sequence", "state", "data"})
-FLOW_TYPES = frozenset({"architecture", "process"})
+LEVEL_TYPES = frozenset({"architecture", "process", "sequence", "state", "data",
+                         "class", "c4", "deployment", "dependency", "tree", "behaviour", "timeline"})
+FLOW_TYPES = frozenset({"architecture", "process", "c4"})
+BT_KINDS = frozenset({"sequence", "selector", "parallel", "decorator", "action", "condition"})
+RELATIONS = frozenset({"inherits", "implements", "composition", "aggregation", "association", "dependency"})
 MEDIA_TYPES = frozenset({"image", "video", "embed"})
 DIRECTIONS = frozenset({"LR", "TB"})
 ROLES = frozenset({"input", "output"})
 EDGE_STYLES = frozenset({"flow", "solid", "dashed"})
 ARROWS = frozenset({"end", "both", "none"})
+ROUTES = frozenset({"curved", "orthogonal", "straight"})
 TEXT_SIZES = frozenset({"s", "m", "l"})
+INTENTS = frozenset({"learn", "demonstrate", "explain", "review", "document", "debug", "refactor", "audit", "other"})
 HEX_RE = re.compile(r"^#[0-9a-fA-F]{3,8}$")
+CONFIDENCE = frozenset({"read", "peeked", "inferred"})
+DIFF_MARKS = frozenset({"added", "removed", "changed"})
+REPO_KEYS = frozenset({"url", "commit", "root"})
+SHA_RE = re.compile(r"^[0-9a-f]{7,64}$")
+SOURCE_RE = re.compile(r"^(?P<path>.+?)(?::(?:(?P<a>\d+)(?:-(?P<b>\d+))?|(?P<sym>[A-Za-z_$~][\w$.:~]*)))?$")
+UNMARKED_SHAPES = ("initial", "final", "text")
 LEGACY_NODE_FIELDS = ("kind", "stats")
 MAX_LABEL = 60
 MAX_EDGE_LABEL = 28
@@ -97,6 +124,13 @@ def _check_node(n, loc, rep, group_ids):
         rep.error(f"{loc}: 'icon' must be a string")
     elif icon and icon not in ICONS and len(icon) > 3:
         rep.warn(f"{loc}: icon '{icon}' is not in the library and will render as text")
+    if "methods" in n and not _str_list(n["methods"]):
+        rep.error(f"{loc}: 'methods' must be a list of strings like '+ total(): Money'")
+    for f in ("tech", "date", "stereotype"):
+        if f in n and not isinstance(n[f], str):
+            rep.error(f"{loc}: '{f}' must be a string")
+    if n.get("bt") is not None and n["bt"] not in BT_KINDS:
+        rep.error(f"{loc}: 'bt' must be one of {', '.join(sorted(BT_KINDS))}")
     for c in ("x", "y", "w", "h"):
         if c in n and not _num(n[c]):
             rep.error(f"{loc}: '{c}' must be a number")
@@ -123,13 +157,20 @@ def _check_node(n, loc, rep, group_ids):
     if "fields" in n and not _str_list(n["fields"]):
         rep.error(f"{loc}: 'fields' must be a list of strings like 'id: int PK'")
     media = n.get("media")
-    if media is not None:
-        if not isinstance(media, dict) or not isinstance(media.get("src"), str) or not media["src"]:
-            rep.error(f"{loc}: 'media' needs a string 'src'")
-        elif media.get("type") is not None and media["type"] not in MEDIA_TYPES:
+    items = media if isinstance(media, list) else [media] if media is not None else []
+    if isinstance(media, list) and not media:
+        rep.error(f"{loc}: 'media' is an empty list; leave it out instead")
+    for m in items:
+        if not isinstance(m, dict) or not isinstance(m.get("src"), str) or not m["src"]:
+            rep.error(f"{loc}: each 'media' item needs a string 'src'")
+        elif m.get("type") is not None and m["type"] not in MEDIA_TYPES:
             rep.error(f"{loc}: media.type must be image, video or embed")
-    if n.get("shape") == "image" and not (isinstance(media, dict) and media.get("src")):
+    if n.get("shape") == "image" and not any(isinstance(m, dict) and m.get("src") for m in items):
         rep.warn(f"{loc}: image node without media.src shows an empty placeholder")
+    if n.get("confidence") is not None and n["confidence"] not in CONFIDENCE:
+        rep.error(f"{loc}: confidence must be read, peeked or inferred")
+    if n.get("diff") is not None and n["diff"] not in DIFF_MARKS:
+        rep.error(f"{loc}: diff must be added, removed or changed")
     if n.get("group") is not None and n["group"] not in group_ids:
         rep.error(f"{loc}: group '{n['group']}' is not defined in this level's 'groups'")
     for f in LEGACY_NODE_FIELDS:
@@ -164,9 +205,11 @@ def _check_level(level, where, rep):
         return
     ltype = level.get("type", "architecture")
     if ltype not in LEVEL_TYPES:
-        rep.error(f"{where}: 'type' must be 'architecture' or 'process'")
+        rep.error(f"{where}: 'type' must be one of {', '.join(sorted(LEVEL_TYPES))}")
     if "direction" in level and level["direction"] not in DIRECTIONS:
         rep.error(f"{where}: 'direction' must be 'LR' or 'TB'")
+    if "route" in level and level["route"] not in ROUTES:
+        rep.error(f"{where}: 'route' must be one of {', '.join(sorted(ROUTES))}")
     group_ids = _check_groups(level, where, rep)
     nodes = level.get("nodes", [])
     if not isinstance(nodes, list):
@@ -213,6 +256,15 @@ def _check_level(level, where, rep):
             rep.error(f"{loc}: 'style' must be one of {', '.join(sorted(EDGE_STYLES))}")
         if e.get("arrow") is not None and e["arrow"] not in ARROWS:
             rep.error(f"{loc}: 'arrow' must be one of {', '.join(sorted(ARROWS))}")
+        if e.get("rel") is not None and e["rel"] not in RELATIONS:
+            rep.error(f"{loc}: 'rel' must be one of {', '.join(sorted(RELATIONS))}")
+        if e.get("route") is not None and e["route"] not in ROUTES:
+            rep.error(f"{loc}: 'route' must be one of {', '.join(sorted(ROUTES))}")
+        pts = e.get("points")
+        if pts is not None and not (isinstance(pts, list) and all(isinstance(p, list) and len(p) == 2 and all(_num(v) for v in p) for p in pts)):
+            rep.error(f"{loc}: 'points' must be a list of [x, y] bend points")
+        if e.get("diff") is not None and e["diff"] not in DIFF_MARKS:
+            rep.error(f"{loc}: diff must be added, removed or changed")
         if isinstance(e.get("label"), str) and len(e["label"]) > MAX_EDGE_LABEL:
             rep.warn(f"{loc}: edge label is long; name what flows in two or three words")
     roles = {n.get("role") for n in nodes if isinstance(n, dict)}
@@ -252,6 +304,13 @@ def validate(data):
             rep.error("'meta.glossary' must be a list of {term, def}")
         elif isinstance(gl, list) and len(gl) > 8:
             rep.warn("'meta.glossary' shows at most 8 terms")
+        if "intent" in meta and meta["intent"] not in INTENTS:
+            rep.error(f"'meta.intent' must be one of {', '.join(sorted(INTENTS))}")
+        if "audience" in meta and not isinstance(meta["audience"], str):
+            rep.error("'meta.audience' must be a string")
+        _check_repo(meta.get("repo"), rep)
+        if "tours" in meta and isinstance(data.get("root"), dict):
+            _check_tours(meta["tours"], data["root"], rep)
     if "story" in data:
         rep.warn("'story' is a v1 field; story mode was removed and it is ignored")
     if "kinds" in data:
@@ -260,7 +319,551 @@ def validate(data):
         rep.error("a 'root' level is required")
         return rep
     _check_level(data["root"], "root", rep)
+    marked = [n.get("confidence") is not None for _, n in iter_nodes(data["root"]) if n.get("shape") not in UNMARKED_SHAPES]
+    if any(marked) and not all(marked):
+        rep.warn(f"{marked.count(False)} node(s) have no 'confidence'; mark every node read, peeked or inferred")
     return rep
+
+
+def _level_at(root, path):
+    level = root
+    for nid in path:
+        n = next((x for x in level.get("nodes", []) if isinstance(x, dict) and x.get("id") == nid), None)
+        if not n or not isinstance(n.get("children"), dict):
+            return None
+        level = n["children"]
+    return level
+
+
+def _check_tours(tours, root, rep):
+    """meta.tours: [{title, steps: [{path, node, title, text, notes, quiz: {q, answer, explain}}]}]; every id must resolve."""
+    if not isinstance(tours, list):
+        rep.error("'meta.tours' must be a list")
+        return
+    for t, tour in enumerate(tours):
+        loc = f"meta.tours[{t}]"
+        if not isinstance(tour, dict) or not isinstance(tour.get("steps"), list) or not tour["steps"]:
+            rep.error(f"{loc}: needs a 'title' and a non-empty 'steps' list")
+            continue
+        for k, st in enumerate(tour["steps"]):
+            sl = f"{loc}.steps[{k}]"
+            if not isinstance(st, dict):
+                rep.error(f"{sl}: must be an object")
+                continue
+            path = st.get("path", [])
+            if not (isinstance(path, list) and all(isinstance(p, str) for p in path)):
+                rep.error(f"{sl}: 'path' must be a list of node ids, from the overview down")
+                continue
+            level = _level_at(root, path)
+            if level is None:
+                rep.error(f"{sl}: path {path} does not lead to a level with an inner diagram")
+                continue
+            ids = {n.get("id") for n in level.get("nodes", []) if isinstance(n, dict)}
+            if st.get("node") is not None and st["node"] not in ids:
+                rep.error(f"{sl}: node '{st['node']}' is not in that level")
+            q = st.get("quiz")
+            if q is not None and not (isinstance(q, dict) and isinstance(q.get("q"), str) and q.get("answer") in ids):
+                rep.error(f"{sl}: 'quiz' needs a question 'q' and an 'answer' that is a node id in that level")
+            if not (st.get("text") or st.get("title") or q):
+                rep.warn(f"{sl}: a step with no title, text or quiz says nothing")
+
+
+def _check_repo(repo, rep):
+    """meta.repo: {url, commit, root}, used to build commit-pinned source links."""
+    if repo is None:
+        return
+    if not isinstance(repo, dict):
+        rep.error("'meta.repo' must be an object {url, commit, root}")
+        return
+    for k in sorted(set(repo) - REPO_KEYS):
+        rep.warn(f"'meta.repo.{k}' is not a known field and is ignored")
+    url = repo.get("url")
+    if url is not None:
+        if not isinstance(url, str) or not re.match(r"^https?://[^/\s]+/\S+$", url):
+            rep.error("'meta.repo.url' must be an http(s) URL such as https://github.com/owner/repo")
+        elif re.match(r"^https?://[^/]*@", url):
+            rep.error("'meta.repo.url' must not contain credentials")
+    if repo.get("commit") is not None and not (isinstance(repo["commit"], str) and SHA_RE.match(repo["commit"])):
+        rep.error("'meta.repo.commit' must be a commit hash (7 to 64 lowercase hex characters)")
+    root = repo.get("root")
+    if root is not None and (not isinstance(root, str) or root.startswith("/") or ".." in root.split("/")):
+        rep.error("'meta.repo.root' must be a relative folder inside the repository")
+    if url and not repo.get("commit"):
+        rep.warn("'meta.repo' has a url but no commit; links will not be pinned (build with --repo PATH)")
+
+
+# ---------- repository metadata and permalinks ----------
+
+def git(path, *args):
+    """Run git in path; stdout stripped, or None when git is missing or fails."""
+    try:
+        r = subprocess.run(["git", "-C", str(path)] + list(args), capture_output=True, text=True, timeout=30)
+    except (OSError, subprocess.SubprocessError):
+        return None
+    return r.stdout.strip() if r.returncode == 0 else None
+
+
+def https_url(remote):
+    """Browsable https URL for a git remote (ssh, scp-like or https), without credentials or `.git`."""
+    remote = (remote or "").strip()
+    for rx, host, repo in ((r"^ssh://(?:[^@/]+@)?([^/:]+)(?::\d+)?/(.+?)(?:\.git)?/?$", 1, 2),
+                           (r"^https?://(?:[^@/]+@)?([^/]+)/(.+?)(?:\.git)?/?$", 1, 2),
+                           (r"^(?:[^@/:]+@)?([^:/]+):(?!//)(.+?)(?:\.git)?/?$", 1, 2)):
+        m = re.match(rx, remote)
+        if m:
+            return f"https://{m.group(host)}/{m.group(repo)}"
+    return None
+
+
+def repo_meta(path):
+    """{url, commit, root} for the git work tree holding `path` ({} if it is not one)."""
+    commit = git(path, "rev-parse", "HEAD")
+    if not commit:
+        return {}
+    out = {"commit": commit}
+    url = https_url(git(path, "remote", "get-url", "origin"))
+    if url:
+        out["url"] = url
+    prefix = (git(path, "rev-parse", "--show-prefix") or "").strip("/")
+    if prefix:
+        out["root"] = prefix
+    return out
+
+
+def parse_source(src):
+    """(path, first line, last line, symbol) for `path`, `path:symbol`, `path:line` or `path:start-end`."""
+    m = SOURCE_RE.match(src.strip())
+    a, b = m.group("a"), m.group("b")
+    return m.group("path"), int(a) if a else None, int(b) if b else (int(a) if a else None), m.group("sym")
+
+
+def permalink(repo, src):
+    """Link to a source reference at the pinned commit: GitHub style `/blob/`, or GitLab's `/-/blob/`.
+    Symbols get no line anchor; a viewer may resolve them."""
+    if not isinstance(repo, dict) or not repo.get("url") or not repo.get("commit"):
+        return None
+    path, a, b, _ = parse_source(src)
+    path = path[2:] if path.startswith("./") else path
+    full = "/".join(x for x in (str(repo.get("root") or "").strip("/"), path) if x)
+    url = repo["url"].rstrip("/")
+    gitlab = "gitlab" in url.split("/")[2] if url.count("/") >= 2 else False
+    link = f"{url}/{'-/' if gitlab else ''}blob/{repo['commit']}/{full}"
+    if a:
+        link += f"#L{a}" + ((f"-{b}" if gitlab else f"-L{b}") if b and b != a else "")
+    return link
+
+
+# ---------- walking diagrams ----------
+
+def iter_nodes(level, path=()):
+    """Yield (id path, node) for every node, depth first."""
+    for n in (level or {}).get("nodes", []) or []:
+        if isinstance(n, dict):
+            p = path + (str(n.get("id")),)
+            yield p, n
+            if isinstance(n.get("children"), dict):
+                yield from iter_nodes(n["children"], p)
+
+
+def levels(data):
+    """{level path: level}; the root is '' and a child level is 'parent/child'."""
+    out = {"": data.get("root") or {}}
+    for p, n in iter_nodes(data.get("root")):
+        if isinstance(n.get("children"), dict):
+            out["/".join(p)] = n["children"]
+    return out
+
+
+# ---------- drift ----------
+
+def _py_names(text):
+    """Qualified names (Class.method, function, CONSTANT) defined in a Python file."""
+    try:
+        tree = ast.parse(text)
+    except (SyntaxError, ValueError):
+        return set()
+    names = set()
+
+    def visit(body, prefix):
+        for node in body:
+            if isinstance(node, (ast.ClassDef, ast.FunctionDef, ast.AsyncFunctionDef)):
+                names.add(prefix + node.name)
+                visit(node.body, prefix + node.name + ".")
+            elif isinstance(node, (ast.Assign, ast.AnnAssign)):
+                for t in (node.targets if isinstance(node, ast.Assign) else [node.target]):
+                    if isinstance(t, ast.Name):
+                        names.add(prefix + t.id)
+    visit(tree.body, "")
+    return names
+
+
+METHOD_RE = r"^\s*(?:[\w<>\[\],.?*&:~@]+\s+)+{name}\s*\("  # Java/C#/C++ methods: modifiers or a type first
+
+
+def _defines(path, text, sym):
+    """Whether a file defines `sym` (`name` or `Outer.name`)."""
+    last = re.split(r"\.|::", sym)[-1]
+    if path.suffix == ".py":
+        names = _py_names(text)
+        return sym in names or any(n.endswith("." + sym) for n in names)
+    import peek
+    for rx in (re.compile(peek.DEF_RE.format(name=re.escape(last)), re.M), re.compile(METHOD_RE.format(name=re.escape(last)), re.M)):
+        for m in rx.finditer(text):
+            line = m.group(0).strip()
+            if not re.match(r"(?:return|if|for|while|switch|catch|else|new|await|throw|yield|case)\b", line):
+                return True
+    return False
+
+
+def _symbol_index(repo):
+    """{file: set of names} from the scanner's outline, with `Class.method` for methods."""
+    import scan_repo
+    index = {}
+    for f in scan_repo.outline(repo, per_file=10 ** 6):
+        names, cls = set(), None
+        for s in f["symbols"]:
+            m = re.search(r"(?:class|def|func|fn|struct|enum|trait|interface|record|impl)\s+(?:\([^)]*\)\s*)?(\w+)", s["sig"]) \
+                or re.match(r"(\w+)\s+(?:struct|interface)", s["sig"]) or re.search(r"([\w~]+)\s*\(", s["sig"])
+            if not m:
+                continue
+            name = m.group(1).split("::")[-1]
+            if s["depth"] == 0:
+                cls = name if s["sig"].startswith("class ") else None
+                names.add(name)
+            else:
+                names.add(f"{cls}.{name}" if cls else name)
+                names.add(name)
+        index[f["file"]] = names
+    return index
+
+
+def drift(data, repo):
+    """Every node `source` that no longer matches the code: missing file, missing symbol,
+    a symbol that moved to another file, or a line beyond the end of the file."""
+    repo = Path(repo).resolve()
+    if str(HERE) not in sys.path:
+        sys.path.insert(0, str(HERE))
+    out, checked, nodes, index, files = [], 0, 0, None, None
+    texts = {}
+
+    def text_of(p):
+        if p not in texts:
+            try:
+                texts[p] = p.read_text(encoding="utf-8", errors="replace")
+            except OSError:
+                texts[p] = ""
+        return texts[p]
+
+    def where(sym):
+        nonlocal index
+        if index is None:
+            index = _symbol_index(repo)
+        exact = [f for f, names in index.items() if sym in names]
+        return exact or [f for f, names in index.items() if re.split(r"\.|::", sym)[-1] in names]
+
+    def same_path(path, sym):
+        """Files elsewhere in the repo whose path ends with `path` (and that define `sym`, if given)."""
+        nonlocal files
+        if files is None:
+            import scan_repo
+            files = [scan_repo.rel(p, repo) for p in scan_repo.list_files(repo)[0]]
+        tail = "/" + path.lstrip("./")
+        return [c for c in files if ("/" + c).endswith(tail) and (not sym or _defines(repo / c, text_of(repo / c), sym))]
+
+    for p, n in iter_nodes(data.get("root")):
+        srcs = [s for s in n.get("source") or [] if isinstance(s, str) and s.strip() and not re.match(r"^\w+://", s)]
+        nodes += bool(srcs)
+        for src in srcs:
+            checked += 1
+            path, a, b, sym = parse_source(src)
+            f = repo / path
+            if not f.exists() and Path(str(f) + ".py").is_file():
+                f = Path(str(f) + ".py")
+            item = {"node": "/".join(p), "label": n.get("label"), "source": src}
+            if not f.exists():
+                cands = same_path(path, sym) or (where(sym) if sym else [])
+                if cands and not sym:
+                    item.update(problem="moved", detail=f"file is gone; same path under {', '.join(cands[:3])}", candidates=cands[:5])
+                elif cands:
+                    item.update(problem="moved", detail=f"file is gone; '{sym}' is now in {', '.join(cands[:3])}", candidates=cands[:5])
+                else:
+                    item.update(problem="missing-file", detail="file not found")
+            elif f.is_dir():
+                continue
+            elif a is not None:
+                total = len(text_of(f).splitlines())
+                if a > total or b > total or b < a:
+                    item.update(problem="line-out-of-range", detail=f"lines {a}-{b} but the file has {total}")
+                else:
+                    continue
+            elif sym:
+                if _defines(f, text_of(f), sym):
+                    continue
+                cands = [c for c in where(sym) if c != path]
+                if cands:
+                    item.update(problem="moved", detail=f"'{sym}' is now in {', '.join(cands[:3])}", candidates=cands[:5])
+                else:
+                    item.update(problem="missing-symbol", detail=f"'{sym}' not found in {path}")
+            else:
+                continue
+            out.append(item)
+    return {"repo": str(repo), "nodes": nodes, "checked": checked, "drifted": out}
+
+
+# ---------- diff ----------
+
+DIFF_NODE_FIELDS = ("label", "shape", "role", "source", "note")
+DIFF_EDGE_FIELDS = ("label", "style", "arrow")
+
+
+def _edge_keys(edges):
+    """Edges keyed by (from, to, n) where n counts repeats of the same pair."""
+    seen, out = Counter(), {}
+    for e in edges or []:
+        if isinstance(e, dict):
+            k = (e.get("from"), e.get("to"))
+            out[k + (seen[k],)] = e
+            seen[k] += 1
+    return out
+
+
+def _nodes_by_id(level):
+    return {n.get("id"): n for n in (level or {}).get("nodes", []) or [] if isinstance(n, dict)}
+
+
+def diff(old, new):
+    """Added, removed and changed nodes and edges, compared by id within each level path."""
+    res = {k: {"added": [], "removed": [], "changed": []} for k in ("nodes", "edges")}
+    lo, ln = levels(old), levels(new)
+    for lp in [p for p in ln if p in lo]:
+        on, nn = _nodes_by_id(lo[lp]), _nodes_by_id(ln[lp])
+        for i, n in nn.items():
+            if i not in on:
+                res["nodes"]["added"].append({"level": lp, "id": i, "label": n.get("label")})
+                continue
+            o = on[i]
+            fields = [f for f in DIFF_NODE_FIELDS if o.get(f) != n.get(f)]
+            if bool(o.get("children")) != bool(n.get("children")):
+                fields.append("children")
+            if fields:
+                res["nodes"]["changed"].append({"level": lp, "id": i, "label": n.get("label"), "fields": fields})
+        res["nodes"]["removed"] += [{"level": lp, "id": i, "label": o.get("label")} for i, o in on.items() if i not in nn]
+        oe, ne = _edge_keys(lo[lp].get("edges")), _edge_keys(ln[lp].get("edges"))
+        for k, e in ne.items():
+            item = _edge_item(lp, k, e)
+            if k not in oe:
+                res["edges"]["added"].append(item)
+            else:
+                fields = [f for f in DIFF_EDGE_FIELDS if oe[k].get(f) != e.get(f)]
+                if fields:
+                    res["edges"]["changed"].append(dict(item, fields=fields))
+        res["edges"]["removed"] += [_edge_item(lp, k, e) for k, e in oe.items() if k not in ne]
+    return res
+
+
+def _edge_item(lp, k, e):
+    item = {"level": lp, "from": k[0], "to": k[1], "label": e.get("label")}
+    if k[2]:
+        item["n"] = k[2]  # the n-th repeat of this pair, counting from 0
+    return item
+
+
+def _mark(node, mark):
+    node["diff"] = mark
+    for _, n in iter_nodes(node.get("children")):
+        n["diff"] = mark
+    for lv in [node.get("children")] + [n.get("children") for _, n in iter_nodes(node.get("children"))]:
+        for e in (lv or {}).get("edges", []) or []:
+            e["diff"] = mark
+
+
+def diff_page_data(old, new, d=None):
+    """NEW with removed nodes and edges put back, and `diff` set on everything that differs."""
+    d = d or diff(old, new)
+    data, lo = copy.deepcopy(new), levels(old)
+    ln = levels(data)
+    for item in d["nodes"]["removed"]:
+        n = copy.deepcopy(_nodes_by_id(lo[item["level"]])[item["id"]])
+        _mark(n, "removed")
+        ln[item["level"]].setdefault("nodes", []).append(n)
+    for kind in ("added", "changed"):
+        for item in d["nodes"][kind]:
+            n = _nodes_by_id(ln[item["level"]])[item["id"]]
+            if kind == "added":
+                _mark(n, "added")
+            else:
+                n["diff"] = "changed"
+    for kind in ("added", "changed"):
+        for item in d["edges"][kind]:
+            lv = ln[item["level"]]
+            edges = _edge_keys(lv.get("edges"))
+            edges[(item["from"], item["to"], item.get("n", 0))]["diff"] = kind
+    for item in d["edges"]["removed"]:
+        lv = ln[item["level"]]
+        e = _edge_keys(lo[item["level"]].get("edges"))[(item["from"], item["to"], item.get("n", 0))]
+        lv.setdefault("edges", []).append(dict(copy.deepcopy(e), diff="removed"))
+    return data
+
+
+def diff_text(d):
+    lines = []
+    sym = {"added": "+", "removed": "-", "changed": "~"}
+    for kind in ("added", "removed", "changed"):
+        for n in d["nodes"][kind]:
+            where = "/".join(x for x in (n["level"], n["id"]) if x)
+            lines.append(f"{sym[kind]} node {where}  {json.dumps(n['label'], ensure_ascii=False)}"
+                         + (f"  ({', '.join(n['fields'])})" if n.get("fields") else ""))
+    for kind in ("added", "removed", "changed"):
+        for e in d["edges"][kind]:
+            lines.append(f"{sym[kind]} edge {e['level'] or 'root'}: {e['from']} -> {e['to']}"
+                         + (f"  {json.dumps(e['label'], ensure_ascii=False)}" if e.get("label") else "")
+                         + (f"  ({', '.join(e['fields'])})" if e.get("fields") else ""))
+    c = {k: {x: len(v) for x, v in d[k].items()} for k in d}
+    lines.append(f"nodes: {c['nodes']['added']} added, {c['nodes']['removed']} removed, {c['nodes']['changed']} changed; "
+                 f"edges: {c['edges']['added']} added, {c['edges']['removed']} removed, {c['edges']['changed']} changed")
+    return "\n".join(lines)
+
+
+# ---------- three-way merge ----------
+
+MISSING = object()
+
+
+class Merge:
+    """Three-way merge of diagram data: `base` is the old generated map, `ours` the human-edited one,
+    `theirs` the newly generated one. A field a person changed (ours != base) is kept; otherwise the
+    new scan wins. Nodes a person deleted stay deleted; nodes the scan newly found are added."""
+
+    def __init__(self):
+        self.conflicts, self.notes, self.stats = [], [], Counter()
+
+    def value(self, b, o, t, where, field):
+        if o == b:
+            if t != b:
+                self.stats["updated"] += 1
+            return t
+        if t != b and t != o:
+            self.conflicts.append({"where": where, "field": field, "base": _v(b), "ours": _v(o), "theirs": _v(t)})
+        elif t == b:
+            self.stats["kept"] += 1
+        return o
+
+    def fields(self, b, o, t, where, nested=None):
+        nested, out = nested or {}, {}
+        b = b if isinstance(b, dict) else {}
+        for k in list(o) + [k for k in t if k not in o]:
+            fn = nested.get(k)
+            v = fn(b.get(k, MISSING), o.get(k, MISSING), t.get(k, MISSING), where) if fn else \
+                self.value(b.get(k, MISSING), o.get(k, MISSING), t.get(k, MISSING), where, k)
+            if v is not MISSING:
+                out[k] = v
+        return out
+
+    def items(self, b, o, t, where, kind, keyf, merge_one):
+        """Merge two lists of records matched by key. Returns (merged list, records new from `theirs`)."""
+        bm, om, tm = (keyf(x if isinstance(x, list) else []) for x in (b, o, t))
+        out, added = [], []
+        for k, ov in om.items():
+            if k in tm:
+                out.append(merge_one(bm.get(k), ov, tm[k], f"{where} > {_k(k)}"))
+            elif k not in bm:
+                out.append(ov)
+            elif ov == bm[k]:
+                self.stats["removed"] += 1
+            else:
+                self.conflicts.append({"where": f"{where} > {_k(k)}", "field": kind,
+                                       "ours": "edited", "theirs": "removed by the new scan"})
+                out.append(ov)
+        for k, tv in tm.items():
+            if k in om:
+                continue
+            if k in bm:
+                if tv != bm[k]:
+                    self.notes.append(f"{where} > {_k(k)}: you deleted this {kind}; the new scan changed it; it stays deleted")
+                continue
+            tv = copy.deepcopy(tv)
+            out.append(tv)
+            added.append(tv)
+            self.stats["added"] += 1
+        return out, added
+
+    def level(self, b, o, t, where):
+        if o is MISSING and t is MISSING:
+            return MISSING
+        if o is MISSING or o is None:
+            if b is MISSING:
+                return copy.deepcopy(t)
+            if t != b:
+                self.notes.append(f"{where}: you removed this inner diagram; the new scan changed it; it stays removed")
+            return o
+        if t is MISSING or t is None:
+            if b is MISSING or o != b:
+                if b is not MISSING:
+                    self.conflicts.append({"where": where, "field": "children", "ours": "edited", "theirs": "removed by the new scan"})
+                return o
+            return MISSING
+        added = []
+
+        def nodes(bn, on, tn, w):
+            out, new = self.items(bn, on, tn, w, "node", _nodes_keyed, self.node)
+            added.extend(new)
+            return out
+
+        def edges(be, oe, te, w):
+            return self.items(be, oe, te, w, "edge", _edge_keys, lambda x, y, z, ww: self.fields(x, y, z, ww))[0]
+
+        def groups(bg, og, tg, w):
+            return self.items(bg, og, tg, w, "group", _nodes_keyed, lambda x, y, z, ww: self.fields(x, y, z, ww))[0]
+
+        out = self.fields(b, o, t, where, {"nodes": nodes, "edges": edges, "groups": groups})
+        ids = {n.get("id") for n in out.get("nodes", []) if isinstance(n, dict)}
+        kept = [e for e in out.get("edges", []) or [] if e.get("from") in ids and e.get("to") in ids]
+        if len(kept) < len(out.get("edges", []) or []):
+            self.notes.append(f"{where}: dropped {len(out['edges']) - len(kept)} new edge(s) to nodes you deleted")
+            out["edges"] = kept
+        self.place(out, added, where)
+        return out
+
+    def node(self, b, o, t, where):
+        return self.fields(b, o, t, where, {"children": self.level})
+
+    def place(self, level, added, where):
+        """New nodes get no x/y (auto-layout), unless every other node is placed by hand: then they
+        go in a column to the right, so one new node does not re-lay a level someone arranged."""
+        if not added:
+            return
+        for n in added:
+            n.pop("x", None)
+            n.pop("y", None)
+        rest = [n for n in level.get("nodes", []) if all(n is not a for a in added)]
+        if rest and all(_num(n.get("x")) and _num(n.get("y")) for n in rest):
+            x = max(n["x"] for n in rest) + 220
+            y = min(n["y"] for n in rest)
+            for i, n in enumerate(added):
+                n["x"], n["y"] = x, y + i * 120
+            self.notes.append(f"{where or 'root'}: placed {len(added)} new node(s) in a column on the right; use Tidy to re-lay the level")
+
+
+def _v(x):
+    return None if x is MISSING else x
+
+
+def _k(k):
+    return f"{k[0]} -> {k[1]}" if isinstance(k, tuple) else str(k)
+
+
+def _nodes_keyed(items):
+    return {x.get("id"): x for x in items if isinstance(x, dict)}
+
+
+def merge(base, ours, theirs):
+    """Three-way merge; returns (data, Merge report)."""
+    m = Merge()
+    data = m.fields(base, ours, theirs, "root", {
+        "meta": lambda b, o, t, w: m.fields(b, o, t, "meta") if isinstance(o, dict) and isinstance(t, dict) else m.value(b, o, t, w, "meta"),
+        "root": lambda b, o, t, w: m.level(b, o, t, "root"),
+    })
+    return data, m
 
 
 def inline_media(data, base_dir, max_mb=12):
@@ -286,10 +889,11 @@ def inline_media(data, base_dir, max_mb=12):
     def walk(level):
         for n in level.get("nodes", []):
             m = n.get("media")
-            if isinstance(m, dict):
-                for k in ("src", "poster"):
-                    if k in m:
-                        m[k] = conv(m[k])
+            for item in (m if isinstance(m, list) else [m]):
+                if isinstance(item, dict):
+                    for k in ("src", "poster"):
+                        if k in item:
+                            item[k] = conv(item[k])
             if isinstance(n.get("children"), dict):
                 walk(n["children"])
 
@@ -371,6 +975,18 @@ def cmd_check(a):
 
 def cmd_build(a):
     data = _load(a.diagram)
+    if a.repo and isinstance(data.get("meta"), dict):
+        found = repo_meta(a.repo)
+        if not found:
+            print(f"warning: {a.repo} is not a git work tree; meta.repo not filled")
+        repo = data["meta"].setdefault("repo", {})
+        if isinstance(repo, dict):
+            for k, v in found.items():
+                repo.setdefault(k, v)
+            if not repo:
+                del data["meta"]["repo"]
+        if found and git(a.repo, "status", "--porcelain", "--untracked-files=no"):
+            print("warning: the work tree has uncommitted changes; pinned links show the last commit")
     rep = validate(data)
     _print_report(rep)
     if not rep.ok:
@@ -403,6 +1019,56 @@ def cmd_outline(a):
     return 0
 
 
+def cmd_drift(a):
+    res = drift(_load(a.diagram), a.repo)
+    if a.json:
+        print(json.dumps(res, indent=1, ensure_ascii=False))
+    elif not res["drifted"]:
+        print(f"ok: {res['checked']} sources on {res['nodes']} nodes match the code")
+    else:
+        print(f"drift: {len(res['drifted'])} of {res['checked']} sources no longer match the code")
+        for d in res["drifted"]:
+            print(f"  {d['node']}  {d['source']}  {d['problem']}: {d['detail']}")
+    return 1 if res["drifted"] else 0
+
+
+def cmd_diff(a):
+    old, new = _load(a.old), _load(a.new)
+    d = diff(old, new)
+    print(json.dumps(d, indent=1, ensure_ascii=False) if a.json else diff_text(d))
+    if a.page:
+        data = diff_page_data(old, new, d)
+        rep = validate(data)
+        if not rep.ok:
+            _print_report(rep)
+            return 1
+        try:
+            inline_media(data, Path(a.new).resolve().parent)
+        except (FileNotFoundError, ValueError) as e:
+            print(f"error: {e}", file=sys.stderr)
+            return 1
+        Path(a.page).write_text(embed(data, Path(a.template).read_text(encoding="utf-8")), encoding="utf-8")
+        print(f"built {a.page}", file=sys.stderr if a.json else sys.stdout)
+    return 0
+
+
+def cmd_merge(a):
+    data, m = merge(_load(a.base), _load(a.ours), _load(a.theirs))
+    Path(a.output).write_text(json.dumps(data, ensure_ascii=False, indent=1) + "\n", encoding="utf-8")
+    st = m.stats
+    print(f"merged {a.output}: {st['added']} added and {st['removed']} removed by the new scan, "
+          f"{st['updated']} fields updated, {st['kept']} of your edits kept, {len(m.conflicts)} conflicts")
+    for c in m.conflicts:
+        print(f"conflict (kept yours): {c['where']}: {c['field']}: yours {json.dumps(c.get('ours'), ensure_ascii=False)}, "
+              f"new scan {json.dumps(c.get('theirs'), ensure_ascii=False)}")
+    for n in m.notes:
+        print(f"note: {n}")
+    rep = validate(data)
+    for e in rep.errors:
+        print(f"error: {e}", file=sys.stderr)
+    return 0 if rep.ok else 1
+
+
 def main(argv=None):
     ap = argparse.ArgumentParser(prog="unfold.py", description=__doc__.split("\n\n")[0])
     sub = ap.add_subparsers(dest="cmd", required=True)
@@ -413,6 +1079,7 @@ def main(argv=None):
     b.add_argument("diagram")
     b.add_argument("output")
     b.add_argument("--template", default=str(DEFAULT_TEMPLATE))
+    b.add_argument("--repo", metavar="PATH", help="fill missing meta.repo url/commit/root from this git work tree")
     b.set_defaults(fn=cmd_build)
     x = sub.add_parser("extract", help="pull diagram data out of a built page")
     x.add_argument("page")
@@ -421,6 +1088,24 @@ def main(argv=None):
     o = sub.add_parser("outline", help="print the nesting as a text tree")
     o.add_argument("source")
     o.set_defaults(fn=cmd_outline)
+    d = sub.add_parser("drift", help="report node sources that no longer match the code (exit 1 if any)")
+    d.add_argument("diagram")
+    d.add_argument("--repo", required=True, metavar="PATH", help="the folder the source paths are relative to")
+    d.add_argument("--json", action="store_true")
+    d.set_defaults(fn=cmd_drift)
+    f = sub.add_parser("diff", help="compare two diagrams by node id per level")
+    f.add_argument("old")
+    f.add_argument("new")
+    f.add_argument("--json", action="store_true")
+    f.add_argument("--page", metavar="OUT.html", help="build NEW with removed elements put back and differences marked")
+    f.add_argument("--template", default=str(DEFAULT_TEMPLATE))
+    f.set_defaults(fn=cmd_diff)
+    m = sub.add_parser("merge", help="three-way merge a re-map into an edited diagram, keeping human edits")
+    m.add_argument("--base", required=True, help="the previously generated diagram")
+    m.add_argument("--ours", required=True, help="the edited diagram (e.g. from extract)")
+    m.add_argument("--theirs", required=True, help="the newly generated diagram")
+    m.add_argument("-o", "--output", required=True)
+    m.set_defaults(fn=cmd_merge)
     a = ap.parse_args(argv)
     return a.fn(a)
 

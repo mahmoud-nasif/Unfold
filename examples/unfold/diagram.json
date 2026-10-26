@@ -2,7 +2,7 @@
  "meta": {
   "title": "Unfold",
   "subtitle": "This repository, mapped by its own skill",
-  "summary": "Unfold turns a codebase into a zoomable map: Claude reads the code in cheap stages, writes the diagram data, and a single HTML page lets anyone explore and edit it.",
+  "summary": "Unfold turns a codebase into an interactive map that explains it: Claude reads the code in cheap stages, writes the diagram data, and a single HTML page lets anyone explore and edit it.",
   "glossary": [
    {
     "term": "Level",
@@ -24,11 +24,60 @@
     "term": "Engine",
     "def": "The HTML template that draws and edits"
    }
+  ],
+  "intent": "learn",
+  "audience": "Developers new to Unfold",
+  "tours": [
+   {
+    "title": "From a repo to a page",
+    "steps": [
+     {
+      "node": "codebase",
+      "title": "It starts with your code",
+      "text": "Any repository goes in. Nothing is uploaded anywhere: the scripts run locally."
+     },
+     {
+      "node": "scanner",
+      "title": "A cheap first look",
+      "text": "scan_repo.py maps the repo without reading files whole: languages, entry points, inputs and outputs, imports. Its output stays under a token budget."
+     },
+     {
+      "path": [
+       "scanner"
+      ],
+      "title": "Inside the scanner",
+      "text": "It walks the files, reads manifests and matches each line against known patterns, then writes a short report."
+     },
+     {
+      "node": "claude",
+      "title": "Claude reads in stages",
+      "text": "Map, then shape, then evidence, then depth: each stage costs more, so it stops as soon as every box is backed by code."
+     },
+     {
+      "node": "diagram",
+      "title": "The map is plain data",
+      "text": "Everything the page shows is one JSON document. unfold.py check validates it before anything is built."
+     },
+     {
+      "node": "page",
+      "title": "One page you can share",
+      "text": "The engine and the data become a single HTML file you can open part by part, trace and edit."
+     },
+     {
+      "title": "Check yourself",
+      "quiz": {
+       "q": "Which part decides what kind of diagram each level should be?",
+       "answer": "claude",
+       "explain": "Claude picks the level type from what the code is."
+      }
+     }
+    ]
+   }
   ]
  },
  "root": {
   "type": "architecture",
-  "caption": "A codebase goes in; a zoomable, editable map comes out.",
+  "caption": "A codebase goes in; an interactive map that explains it comes out.",
   "nodes": [
    {
     "id": "codebase",
@@ -36,7 +85,8 @@
     "shape": "parallelogram",
     "role": "input",
     "color": "slate",
-    "note": "Any repository. The scanner knows Python, JS/TS, Go, Rust, C/C++, Java and ROS 2 conventions."
+    "note": "Any repository. The scanner knows Python, JS/TS, Go, Rust, C/C++, Java and ROS 2 conventions.",
+    "confidence": "peeked"
    },
    {
     "id": "request",
@@ -53,40 +103,47 @@
        "id": "you",
        "label": "You",
        "icon": "user",
-       "color": "rose"
+       "color": "rose",
+       "confidence": "peeked"
       },
       {
        "id": "claude",
        "label": "Claude",
        "icon": "spark",
-       "color": "violet"
+       "color": "violet",
+       "confidence": "peeked"
       },
       {
        "id": "scan",
        "label": "scan_repo.py",
-       "icon": "search"
+       "icon": "search",
+       "confidence": "peeked"
       },
       {
        "id": "peek",
        "label": "peek.py",
-       "icon": "eye"
+       "icon": "eye",
+       "confidence": "peeked"
       },
       {
        "id": "repo",
        "label": "Codebase",
        "shape": "cylinder",
-       "color": "slate"
+       "color": "slate",
+       "confidence": "peeked"
       },
       {
        "id": "cli",
        "label": "unfold.py",
-       "icon": "terminal"
+       "icon": "terminal",
+       "confidence": "peeked"
       },
       {
        "id": "browser",
        "label": "Browser",
        "icon": "monitor",
-       "color": "rose"
+       "color": "rose",
+       "confidence": "peeked"
       }
      ],
      "edges": [
@@ -156,7 +213,8 @@
        "style": "dashed"
       }
      ]
-    }
+    },
+    "confidence": "peeked"
    },
    {
     "id": "scanner",
@@ -175,30 +233,34 @@
        "id": "path",
        "label": "Repository path",
        "shape": "pill",
-       "role": "input"
+       "role": "input",
+       "confidence": "peeked"
       },
       {
        "id": "walk",
        "label": "Walk files, skip build and vendor dirs",
        "source": [
-        "scan_repo.py:walk"
-       ]
+        "skill/unfold/scripts/scan_repo.py:walk"
+       ],
+       "confidence": "read"
       },
       {
        "id": "manifests",
        "label": "Read manifests",
        "shape": "hexagon",
        "source": [
-        "scan_repo.py:manifests"
+        "skill/unfold/scripts/scan_repo.py:manifests"
        ],
-       "note": "package.json, pyproject, Cargo.toml, go.mod, CMakeLists.txt, package.xml, launch files, Dockerfile, compose, Makefile."
+       "note": "package.json, pyproject, Cargo.toml, go.mod, CMakeLists.txt, package.xml, launch files, Dockerfile, compose, Makefile.",
+       "confidence": "read"
       },
       {
        "id": "line",
        "label": "Next code line",
        "source": [
-        "scan_repo.py:scan"
-       ]
+        "skill/unfold/scripts/scan_repo.py:scan"
+       ],
+       "confidence": "read"
       },
       {
        "id": "match",
@@ -206,21 +268,24 @@
        "shape": "diamond",
        "color": "amber",
        "source": [
-        "scan_repo.py:SIGNALS",
-        "scan_repo.py:ENTRY_RES"
-       ]
+        "skill/unfold/scripts/scan_repo.py:SIGNALS",
+        "skill/unfold/scripts/scan_repo.py:ENTRY_RES"
+       ],
+       "confidence": "read"
       },
       {
        "id": "record",
-       "label": "Record kind + file:line"
+       "label": "Record kind + file:line",
+       "confidence": "peeked"
       },
       {
        "id": "imports",
        "label": "Resolve internal imports",
        "source": [
-        "scan_repo.py:scan"
+        "skill/unfold/scripts/scan_repo.py:scan"
        ],
-       "note": "Python via ast, JS/TS via relative import paths, aggregated per top-level folder."
+       "note": "Python via ast, JS/TS via relative import paths, aggregated per top-level folder.",
+       "confidence": "read"
       },
       {
        "id": "report",
@@ -228,8 +293,9 @@
        "shape": "pill",
        "role": "output",
        "source": [
-        "scan_repo.py:to_markdown"
-       ]
+        "skill/unfold/scripts/scan_repo.py:to_markdown"
+       ],
+       "confidence": "read"
       }
      ],
      "edges": [
@@ -270,7 +336,8 @@
        "to": "report"
       }
      ]
-    }
+    },
+    "confidence": "read"
    },
    {
     "id": "peek",
@@ -280,7 +347,8 @@
     "source": [
      "skill/unfold/scripts/peek.py"
     ],
-    "note": "Reads only the lines around each file:line or file:symbol reference, within a fixed line budget."
+    "note": "Reads only the lines around each file:line or file:symbol reference, within a fixed line budget.",
+    "confidence": "read"
    },
    {
     "id": "claude",
@@ -300,82 +368,98 @@
        "id": "in",
        "label": "Request + repo",
        "shape": "pill",
-       "role": "input"
+       "role": "input",
+       "confidence": "peeked"
       },
       {
        "id": "map",
        "label": "Map the repo",
        "source": [
-        "scan_repo.py:scan"
-       ]
+        "skill/unfold/scripts/scan_repo.py:scan"
+       ],
+       "confidence": "read"
       },
       {
        "id": "shape",
        "label": "Outline the key folders",
        "source": [
-        "scan_repo.py:outline"
-       ]
+        "skill/unfold/scripts/scan_repo.py:outline"
+       ],
+       "confidence": "read"
       },
       {
        "id": "evid",
        "label": "Peek at every I/O signal",
        "source": [
-        "peek.py:resolve"
-       ]
+        "skill/unfold/scripts/peek.py:resolve"
+       ],
+       "confidence": "read"
       },
       {
        "id": "bound",
-       "label": "Fix inputs and outputs"
+       "label": "Fix inputs and outputs",
+       "confidence": "peeked"
       },
       {
        "id": "over",
-       "label": "Draw the overview"
+       "label": "Draw the overview",
+       "confidence": "peeked"
       },
       {
        "id": "kind",
        "label": "What is inside this part?",
        "shape": "diamond",
-       "color": "amber"
+       "color": "amber",
+       "confidence": "peeked"
       },
       {
        "id": "t-arch",
-       "label": "Architecture"
+       "label": "Architecture",
+       "confidence": "peeked"
       },
       {
        "id": "t-proc",
-       "label": "Process"
+       "label": "Process",
+       "confidence": "peeked"
       },
       {
        "id": "t-seq",
-       "label": "Sequence"
+       "label": "Sequence",
+       "confidence": "peeked"
       },
       {
        "id": "t-state",
-       "label": "State machine"
+       "label": "State machine",
+       "confidence": "peeked"
       },
       {
        "id": "t-data",
-       "label": "Data model"
+       "label": "Data model",
+       "confidence": "peeked"
       },
       {
        "id": "write",
-       "label": "Write diagram.json with sources"
+       "label": "Write diagram.json with sources",
+       "confidence": "peeked"
       },
       {
        "id": "ok",
        "label": "Check passes?",
        "shape": "diamond",
-       "color": "amber"
+       "color": "amber",
+       "confidence": "peeked"
       },
       {
        "id": "fix",
-       "label": "Fix what it reports"
+       "label": "Fix what it reports",
+       "confidence": "peeked"
       },
       {
        "id": "out",
        "label": "diagram.json",
        "shape": "pill",
-       "role": "output"
+       "role": "output",
+       "confidence": "peeked"
       }
      ],
      "edges": [
@@ -468,7 +552,8 @@
        "style": "dashed"
       }
      ]
-    }
+    },
+    "confidence": "read"
    },
    {
     "id": "diagram",
@@ -488,7 +573,8 @@
         "meta.summary: str",
         "meta.glossary: list",
         "root: Level FK"
-       ]
+       ],
+       "confidence": "peeked"
       },
       {
        "id": "Level",
@@ -499,7 +585,8 @@
         "direction: LR|TB",
         "nodes: Node[]",
         "edges: Edge[]"
-       ]
+       ],
+       "confidence": "peeked"
       },
       {
        "id": "Node",
@@ -511,7 +598,8 @@
         "role: input|output",
         "source: str[]",
         "children: Level FK"
-       ]
+       ],
+       "confidence": "peeked"
       },
       {
        "id": "Edge",
@@ -521,7 +609,8 @@
         "to: Node FK",
         "label: str",
         "style: flow|solid|dashed"
-       ]
+       ],
+       "confidence": "peeked"
       },
       {
        "id": "Group",
@@ -530,7 +619,8 @@
         "id: str PK",
         "label: str",
         "color: str"
-       ]
+       ],
+       "confidence": "peeked"
       },
       {
        "id": "Media",
@@ -539,7 +629,8 @@
         "src: str",
         "type: image|video|embed",
         "caption: str"
-       ]
+       ],
+       "confidence": "peeked"
       }
      ],
      "edges": [
@@ -575,7 +666,8 @@
        "style": "dashed"
       }
      ]
-    }
+    },
+    "confidence": "peeked"
    },
    {
     "id": "template",
@@ -595,7 +687,8 @@
        "label": "story-data block",
        "shape": "document",
        "role": "input",
-       "color": "teal"
+       "color": "teal",
+       "confidence": "peeked"
       },
       {
        "id": "normalize",
@@ -603,10 +696,11 @@
        "icon": "check",
        "color": "blue",
        "source": [
-        "template.html:normalize",
-        "template.html:normLevel"
+        "engine/engine.js:normalize",
+        "engine/engine.js:normLevel"
        ],
-       "note": "Fills defaults and migrates v1 data."
+       "note": "Fills defaults and migrates v1 data.",
+       "confidence": "read"
       },
       {
        "id": "layout",
@@ -614,9 +708,10 @@
        "icon": "layers",
        "color": "blue",
        "source": [
-        "template.html:layoutLevel"
+        "engine/engine.js:layoutLevel"
        ],
-       "note": "Layered layout: break cycles, longest-path layers, barycentre ordering, one band per group."
+       "note": "Layered layout: break cycles, longest-path layers, barycentre ordering, one band per group.",
+       "confidence": "read"
       },
       {
        "id": "render",
@@ -624,9 +719,10 @@
        "icon": "monitor",
        "color": "blue",
        "source": [
-        "template.html:renderScene",
-        "template.html:shapeSVG"
-       ]
+        "engine/engine.js:renderScene",
+        "engine/engine.js:shapeSVG"
+       ],
+       "confidence": "read"
       },
       {
        "id": "camera",
@@ -634,10 +730,11 @@
        "icon": "target",
        "color": "blue",
        "source": [
-        "template.html:animateCam",
-        "template.html:zoomIn",
-        "template.html:zoomOut"
-       ]
+        "engine/engine.js:animateCam",
+        "engine/engine.js:zoomIn",
+        "engine/engine.js:zoomOut"
+       ],
+       "confidence": "read"
       },
       {
        "id": "trace",
@@ -645,9 +742,10 @@
        "icon": "pulse",
        "color": "blue",
        "source": [
-        "template.html:traceSets",
-        "template.html:applyTrace"
-       ]
+        "engine/engine.js:traceSets",
+        "engine/engine.js:applyTrace"
+       ],
+       "confidence": "read"
       },
       {
        "id": "editor",
@@ -655,8 +753,8 @@
        "icon": "wrench",
        "color": "violet",
        "source": [
-        "template.html:onDown",
-        "template.html:renderToolbar"
+        "engine/engine.js:onDown",
+        "engine/engine.js:renderToolbar"
        ],
        "children": {
         "type": "process",
@@ -666,38 +764,45 @@
           "id": "sel",
           "label": "Selected nodes",
           "shape": "pill",
-          "role": "input"
+          "role": "input",
+          "confidence": "peeked"
          },
          {
           "id": "module",
           "label": "Create module at their centre",
           "source": [
-           "template.html:nestNodes"
-          ]
+           "engine/engine.js:nestNodes"
+          ],
+          "confidence": "read"
          },
          {
           "id": "move",
-          "label": "Move nodes and inner edges inside"
+          "label": "Move nodes and inner edges inside",
+          "confidence": "peeked"
          },
          {
           "id": "cross",
           "label": "Edge crosses the boundary?",
           "shape": "diamond",
-          "color": "amber"
+          "color": "amber",
+          "confidence": "peeked"
          },
          {
           "id": "rewire",
-          "label": "Rewire to module, mark inner node In / Out"
+          "label": "Rewire to module, mark inner node In / Out",
+          "confidence": "peeked"
          },
          {
           "id": "keep",
-          "label": "Keep edge as it is"
+          "label": "Keep edge as it is",
+          "confidence": "peeked"
          },
          {
           "id": "done",
           "label": "Module selected, label ready to type",
           "shape": "pill",
-          "role": "output"
+          "role": "output",
+          "confidence": "peeked"
          }
         ],
         "edges": [
@@ -732,7 +837,8 @@
           "to": "done"
          }
         ]
-       }
+       },
+       "confidence": "read"
       },
       {
        "id": "persist",
@@ -740,25 +846,28 @@
        "icon": "download",
        "color": "teal",
        "source": [
-        "template.html:markDirty",
-        "template.html:buildDocument",
-        "template.html:saveToPage"
+        "engine/engine.js:markDirty",
+        "engine/engine.js:buildDocument",
+        "engine/engine.js:saveToPage"
        ],
-       "note": "Edits survive a reload; Export downloads the page or its data; Save writes into a published artifact."
+       "note": "Edits survive a reload; Export downloads the page or its data; Save writes into a published artifact.",
+       "confidence": "read"
       },
       {
        "id": "screen",
        "label": "Interactive page",
        "shape": "parallelogram",
        "role": "output",
-       "color": "rose"
+       "color": "rose",
+       "confidence": "peeked"
       },
       {
        "id": "files",
        "label": "Exported page / JSON",
        "shape": "parallelogram",
        "role": "output",
-       "color": "teal"
+       "color": "teal",
+       "confidence": "peeked"
       },
       {
        "id": "modes",
@@ -766,9 +875,9 @@
        "icon": "flag",
        "color": "violet",
        "source": [
-        "template.html:setMode",
-        "template.html:startInline",
-        "template.html:openMedia"
+        "engine/engine.js:setMode",
+        "engine/engine.js:startInline",
+        "engine/engine.js:openMedia"
        ],
        "note": "What the page is doing right now decides what a click means.",
        "children": {
@@ -782,19 +891,23 @@
          },
          {
           "id": "view",
-          "label": "Viewing"
+          "label": "Viewing",
+          "confidence": "peeked"
          },
          {
           "id": "media",
-          "label": "Viewing media"
+          "label": "Viewing media",
+          "confidence": "peeked"
          },
          {
           "id": "edit",
-          "label": "Editing"
+          "label": "Editing",
+          "confidence": "peeked"
          },
          {
           "id": "typing",
-          "label": "Typing a label"
+          "label": "Typing a label",
+          "confidence": "peeked"
          }
         ],
         "edges": [
@@ -834,7 +947,8 @@
           "label": "Enter / Esc"
          }
         ]
-       }
+       },
+       "confidence": "read"
       }
      ],
      "edges": [
@@ -888,7 +1002,8 @@
        "style": "solid"
       }
      ]
-    }
+    },
+    "confidence": "read"
    },
    {
     "id": "build",
@@ -906,41 +1021,47 @@
        "id": "json",
        "label": "diagram.json",
        "shape": "pill",
-       "role": "input"
+       "role": "input",
+       "confidence": "peeked"
       },
       {
        "id": "validate",
        "label": "validate()",
        "source": [
-        "unfold.py:validate"
-       ]
+        "skill/unfold/scripts/unfold.py:validate"
+       ],
+       "confidence": "read"
       },
       {
        "id": "errs",
        "label": "Any errors?",
        "shape": "diamond",
-       "color": "amber"
+       "color": "amber",
+       "confidence": "peeked"
       },
       {
        "id": "fail",
        "label": "Exit 1 with the error list",
        "shape": "pill",
        "role": "output",
-       "color": "rose"
+       "color": "rose",
+       "confidence": "peeked"
       },
       {
        "id": "embed",
        "label": "embed() into the template",
        "source": [
-        "unfold.py:embed"
+        "skill/unfold/scripts/unfold.py:embed"
        ],
-       "note": "Escapes '<' so no label can close the script block."
+       "note": "Escapes '<' so no label can close the script block.",
+       "confidence": "read"
       },
       {
        "id": "html",
        "label": "page.html",
        "shape": "pill",
-       "role": "output"
+       "role": "output",
+       "confidence": "peeked"
       }
      ],
      "edges": [
@@ -967,7 +1088,8 @@
        "to": "html"
       }
      ]
-    }
+    },
+    "confidence": "read"
    },
    {
     "id": "page",
@@ -979,7 +1101,8 @@
     "media": {
      "src": "../../docs/images/process.png",
      "caption": "A process level inside the map."
-    }
+    },
+    "confidence": "peeked"
    }
   ],
   "edges": [

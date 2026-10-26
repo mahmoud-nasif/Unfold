@@ -1,5 +1,8 @@
 """Tests for scripts/scan_repo.py against a small mixed-language fixture repository."""
 import json
+import os
+import re
+import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -170,3 +173,166 @@ def test_peek_symbol_line_and_budget(tmp_path):
     assert "budget reached" in r.stdout
     r = subprocess.run([sys.executable, str(PEEK), str(tmp_path), "w.py:missing"], capture_output=True, text=True)
     assert r.returncode == 1 and "not found" in r.stderr
+
+
+# ---------- token budget, sections, cache, re-scan ----------
+
+EVAL_REPO = ROOT / "skill" / "unfold" / "evals" / "diagram-a-codebase" / "files" / "orderly"
+
+
+def scan_cli(*args, cache=None):
+    env = dict(os.environ, UNFOLD_CACHE_DIR=str(cache)) if cache else None
+    extra = [] if cache else ["--no-cache"]
+    return subprocess.run([sys.executable, str(SCAN), *map(str, args), *extra], capture_output=True, text=True, env=env)
+
+
+@pytest.mark.parametrize("budget", [150, 250, 400])
+def test_scan_of_the_eval_repo_respects_the_budget(budget):
+    # Given the eval fixture repo, when scanned with a token budget
+    r = scan_cli(EVAL_REPO, "--budget", budget)
+    # Then the output stays within it (~4 chars per token), and says what it cost
+    assert r.returncode == 0
+    assert len(r.stdout) / 4 <= budget
+    assert re.search(r"≈\d+ tokens \(budget %d\)" % budget, r.stdout)
+    # And the highest-priority facts are always kept
+    assert "Python: 8 files" in r.stdout and "## Entry points" in r.stdout
+
+
+def test_budget_truncates_long_tails_with_a_hint(tmp_path):
+    # Given 60 distinct env vars, when scanned with a small budget
+    (tmp_path / "cfg.py").write_text("".join(f"os.environ.get('VAR_{i}')\n" for i in range(60)), encoding="utf-8")
+    r = scan_cli(tmp_path, "--budget", 300)
+    # Then the tail is cut with a one-line hint naming the section that shows it
+    assert re.search(r"… \d+ more; rerun with --section io\.env", r.stdout)
+    # And that section alone, with a larger budget, shows all of them
+    full = scan_cli(tmp_path, "--section", "io.env", "--budget", 5000)
+    assert full.stdout.count("- variable:") == 60 and "## Read these first" not in full.stdout
+
+
+def test_default_budget_caps_a_big_repo(tmp_path):
+    # Given a repo with thousands of signals, when scanned with no options
+    for k in range(40):
+        (tmp_path / f"m{k}.py").write_text("".join(f"os.environ.get('V{k}_{i}')\nopen('f{k}_{i}.txt')\n" for i in range(50)), encoding="utf-8")
+    r = scan_cli(tmp_path)
+    # Then the output stays within the default budget, in Markdown and in JSON
+    assert len(r.stdout) / 4 <= scan_repo.DEFAULT_BUDGET
+    js = scan_cli(tmp_path, "--json")
+    data = json.loads(js.stdout)
+    assert len(js.stdout) / 4 <= scan_repo.DEFAULT_BUDGET * 1.05 and data["truncated"]["io.env"] > 0
+
+
+def test_unknown_section_is_rejected(tmp_path):
+    r = scan_cli(tmp_path, "--section", "nope")
+    assert r.returncode != 0 and "unknown section" in r.stderr
+
+
+def test_json_section_returns_only_that_part(tmp_path):
+    (tmp_path / "a.py").write_text("import os\nos.environ['TOKEN']\nif __name__ == '__main__':\n    pass\n", encoding="utf-8")
+    data = json.loads(scan_cli(tmp_path, "--json", "--section", "entry").stdout)
+    assert data["entry_points"][0]["file"] == "a.py" and "signals" not in data and data["tokens"] > 0
+
+
+def test_repeated_signals_are_reported_once_with_a_count(tmp_path):
+    # Given the same env var read in 5 files
+    for k in range(5):
+        (tmp_path / f"m{k}.py").write_text("import os\nos.getenv('DATABASE_URL')\n", encoding="utf-8")
+    env = scan_repo.scan(tmp_path)["signals"]["env"]
+    # Then it is one entry, with the count and the first locations
+    assert len(env) == 1 and env[0]["count"] == 5 and env[0]["at"] == "m0.py:2" and len(env[0]["also"]) == 3
+    assert "(5 places)" in scan_cli(tmp_path).stdout
+
+
+def test_cache_reuses_unchanged_files(tmp_path):
+    repo, cache = tmp_path / "repo", tmp_path / "cache"
+    repo.mkdir()
+    (repo / "a.py").write_text("import os\nos.getenv('AA')\n", encoding="utf-8")
+    (repo / "b.py").write_text("import os\nos.getenv('BB')\n", encoding="utf-8")
+    # Given a first scan that fills the cache outside the repo
+    first = scan_repo.scan(repo, cache_dir=cache)
+    assert first["cache"] == {"reused": 0, "read": 2} and not list(repo.glob("**/*.json"))
+    # When one file changes and the repo is scanned again
+    (repo / "b.py").write_text("import os\nos.getenv('B2')\n", encoding="utf-8")
+    os.utime(repo / "b.py", ns=(1, 1))
+    again = scan_repo.scan(repo, cache_dir=cache)
+    # Then only that file is read, and the result reflects the change
+    assert again["cache"] == {"reused": 1, "read": 1}
+    assert {s["detail"] for s in again["signals"]["env"]} == {"AA", "B2"}
+
+
+def test_cli_cache_lives_in_the_cache_dir_and_no_cache_disables_it(tmp_path):
+    repo, cache = tmp_path / "repo", tmp_path / "cache"
+    repo.mkdir()
+    (repo / "a.py").write_text("x = 1\n", encoding="utf-8")
+    scan_cli(repo, cache=cache)
+    assert list(cache.glob("*/files.json"))
+    assert "cache reused 1 of 1 files" in scan_cli(repo, cache=cache).stdout
+    assert "cache reused" not in scan_cli(repo).stdout
+
+
+def test_gitignored_and_vendored_paths_are_skipped_without_git(tmp_path):
+    # Given a .gitignore and vendored/build folders in a plain folder
+    (tmp_path / ".gitignore").write_text("secret_out/\n*.tmp.py\n", encoding="utf-8")
+    for k, path in enumerate(("secret_out/x.py", "skip.tmp.py", "vendor/lib.py", "pkg.egg-info/x.py", "real.py")):
+        p = tmp_path / path
+        p.parent.mkdir(parents=True, exist_ok=True)
+        p.write_text(f"import os\nos.getenv('V{k}')\n", encoding="utf-8")
+    env = {s["detail"] for s in scan_repo.scan(tmp_path)["signals"]["env"]}
+    # Then only the real file is scanned
+    assert env == {"V4"}
+
+
+git_required = pytest.mark.skipif(not shutil.which("git"), reason="needs git")
+
+
+def _git(repo, *args):
+    subprocess.run(["git", "-C", str(repo), "-c", "user.name=t", "-c", "user.email=t@t", *args], check=True, capture_output=True)
+
+
+@git_required
+def test_changed_since_reports_only_changed_files(tmp_path):
+    # Given a committed repo
+    (tmp_path / "old.py").write_text("import os\nos.getenv('OLD')\n", encoding="utf-8")
+    (tmp_path / "gone.py").write_text("x = 1\n", encoding="utf-8")
+    (tmp_path / ".gitignore").write_text("ignored/\n", encoding="utf-8")
+    _git(tmp_path, "init", "-q")
+    _git(tmp_path, "add", ".")
+    _git(tmp_path, "commit", "-qm", "init")
+    # When a file is added, one deleted and an ignored one created
+    (tmp_path / "new.py").write_text("import os\nos.getenv('NEW')\n", encoding="utf-8")
+    (tmp_path / "gone.py").unlink()
+    (tmp_path / "ignored").mkdir()
+    (tmp_path / "ignored" / "x.py").write_text("import os\nos.getenv('IGNORED')\n", encoding="utf-8")
+    r = scan_repo.scan(tmp_path, changed_since="HEAD")
+    # Then only the new file's signals are reported, and the deletion is listed
+    assert {s["detail"] for s in r["signals"]["env"]} == {"NEW"}
+    assert r["changed_since"] == {"rev": "HEAD", "changed": ["new.py"], "deleted": ["gone.py"]}
+    md = scan_cli(tmp_path, "--changed-since", "HEAD").stdout
+    assert "Changed since `HEAD`" in md and "deleted `gone.py`" in md
+    # And a full scan honours .gitignore through git
+    assert "IGNORED" not in {s["detail"] for s in scan_repo.scan(tmp_path)["signals"]["env"]}
+
+
+def test_changed_since_outside_git_fails_clearly(tmp_path):
+    r = scan_cli(tmp_path, "--changed-since", "HEAD")
+    assert r.returncode != 0 and "cannot diff" in r.stderr
+
+
+def test_outline_respects_the_budget_and_names_prefixes(tmp_path):
+    # Given many files with symbols in two parts
+    for part in ("api", "core"):
+        for k in range(30):
+            p = tmp_path / part / f"m{k}.py"
+            p.parent.mkdir(parents=True, exist_ok=True)
+            p.write_text("".join(f"def fn_{i}(a, b):\n    '''Does thing {i}.'''\n\n" for i in range(10)), encoding="utf-8")
+    r = scan_cli(tmp_path, "--outline", "--budget", 500)
+    # Then the outline stops within budget and says how to narrow it
+    assert len(r.stdout) / 4 <= 500
+    assert "rerun with --outline PREFIX" in r.stdout and "`core`" in r.stdout
+    assert re.search(r"≈\d+ tokens \(budget 500\)", r.stdout)
+
+
+def test_peek_reports_tokens_and_honours_a_token_budget(tmp_path):
+    (tmp_path / "w.py").write_text("".join(f"x_{i} = {i}  # some padding text\n" for i in range(200)), encoding="utf-8")
+    r = subprocess.run([sys.executable, str(PEEK), str(tmp_path), "w.py", "--budget", "100"], capture_output=True, text=True)
+    assert "100-token budget reached" in r.stdout and len(r.stdout) / 4 <= 100
+    assert re.search(r"\[≈\d+ tokens, \d+ of 400 lines, budget 100 tokens\]", r.stdout)

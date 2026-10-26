@@ -1,0 +1,9 @@
+schema_version: "1.1"
+name: intent-explain
+expected_outcome: |
+  Claude infers the intent *explain* without asking for it. The page's top level is the worker's
+  retry flow itself (a process or sequence level: dequeue, call the carrier, check the response, retry up
+  to --max-retries, mark shipped), with at most one level of surrounding context. Each step cites
+  file:line or file:symbol, meta.intent is "explain", and the glossary is limited to the terms the path uses.
+context:
+  scaffold_script: place-files.sh

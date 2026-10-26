@@ -1,0 +1,153 @@
+{
+ "meta": {
+  "title": "Fan-in hub"
+ },
+ "root": {
+  "type": "architecture",
+  "nodes": [
+   {
+    "id": "cam",
+    "label": "Camera",
+    "role": "input",
+    "shape": "parallelogram"
+   },
+   {
+    "id": "lidar",
+    "label": "Lidar",
+    "role": "input",
+    "shape": "parallelogram"
+   },
+   {
+    "id": "imu",
+    "label": "IMU",
+    "role": "input",
+    "shape": "parallelogram"
+   },
+   {
+    "id": "gps",
+    "label": "GPS",
+    "role": "input",
+    "shape": "parallelogram"
+   },
+   {
+    "id": "cfg",
+    "label": "Config",
+    "shape": "document"
+   },
+   {
+    "id": "ui",
+    "label": "Operator UI",
+    "shape": "cloud"
+   },
+   {
+    "id": "fuse",
+    "label": "Sensor fusion",
+    "icon": "cpu"
+   },
+   {
+    "id": "plan",
+    "label": "Planner"
+   },
+   {
+    "id": "ctrl",
+    "label": "Controller"
+   },
+   {
+    "id": "log",
+    "label": "Logger",
+    "shape": "cylinder"
+   },
+   {
+    "id": "arm",
+    "label": "Arm commands",
+    "role": "output",
+    "shape": "parallelogram"
+   },
+   {
+    "id": "dash",
+    "label": "Dashboard",
+    "role": "output",
+    "shape": "parallelogram"
+   }
+  ],
+  "edges": [
+   {
+    "from": "cam",
+    "to": "fuse",
+    "label": "image"
+   },
+   {
+    "from": "lidar",
+    "to": "fuse",
+    "label": "points"
+   },
+   {
+    "from": "imu",
+    "to": "fuse",
+    "label": "pose"
+   },
+   {
+    "from": "gps",
+    "to": "fuse",
+    "label": "fix"
+   },
+   {
+    "from": "cfg",
+    "to": "fuse"
+   },
+   {
+    "from": "cfg",
+    "to": "plan"
+   },
+   {
+    "from": "cfg",
+    "to": "ctrl"
+   },
+   {
+    "from": "ui",
+    "to": "plan",
+    "label": "goal"
+   },
+   {
+    "from": "fuse",
+    "to": "plan",
+    "label": "state"
+   },
+   {
+    "from": "plan",
+    "to": "ctrl",
+    "label": "path"
+   },
+   {
+    "from": "ctrl",
+    "to": "arm",
+    "label": "cmd"
+   },
+   {
+    "from": "fuse",
+    "to": "log"
+   },
+   {
+    "from": "plan",
+    "to": "log"
+   },
+   {
+    "from": "ctrl",
+    "to": "log"
+   },
+   {
+    "from": "log",
+    "to": "dash"
+   },
+   {
+    "from": "ctrl",
+    "to": "fuse",
+    "label": "feedback"
+   },
+   {
+    "from": "cam",
+    "to": "log"
+   }
+  ]
+ }
+}

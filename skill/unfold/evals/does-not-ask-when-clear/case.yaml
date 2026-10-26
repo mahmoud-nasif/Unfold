@@ -1,0 +1,8 @@
+schema_version: "1.1"
+name: does-not-ask-when-clear
+expected_outcome: |
+  The prompt already states the intent (learn the project in order to maintain it), so Claude does not
+  ask what the map is for. It goes straight to scanning (asking at most a short batch of other questions,
+  if any) and records meta.intent as "learn".
+context:
+  scaffold_script: place-files.sh
