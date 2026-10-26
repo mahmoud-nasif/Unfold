@@ -11,8 +11,10 @@ permissions:
 jobs:
   unit:
     name: Unit tests (Python ${{ matrix.python }})
-    runs-on: ubuntu-latest
+    # ubuntu-latest (26.04) has no Python 3.9 builds; 24.04 still does
+    runs-on: ubuntu-24.04
     strategy:
+      fail-fast: false
       matrix:
         python: ["3.9", "3.12"]
     steps:
