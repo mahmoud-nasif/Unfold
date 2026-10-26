@@ -1,0 +1,8 @@
+syntax = "proto3";
+
+package shop.v1;
+
+service OrderService {
+  rpc GetOrder (GetOrderRequest) returns (Order);
+  rpc WatchOrders (stream WatchRequest) returns (stream OrderEvent);
+}

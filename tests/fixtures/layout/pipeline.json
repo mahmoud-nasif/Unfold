@@ -1,0 +1,120 @@
+{
+ "meta": {
+  "title": "Long pipeline"
+ },
+ "root": {
+  "type": "process",
+  "nodes": [
+   {
+    "id": "s1",
+    "label": "Step 1",
+    "shape": "rect"
+   },
+   {
+    "id": "s2",
+    "label": "Step 2",
+    "shape": "rect"
+   },
+   {
+    "id": "s3",
+    "label": "Step 3",
+    "shape": "rect"
+   },
+   {
+    "id": "s4",
+    "label": "Step 4",
+    "shape": "rect"
+   },
+   {
+    "id": "s5",
+    "label": "Step 5",
+    "shape": "rect"
+   },
+   {
+    "id": "s6",
+    "label": "Step 6",
+    "shape": "rect"
+   },
+   {
+    "id": "s7",
+    "label": "Step 7",
+    "shape": "rect"
+   },
+   {
+    "id": "s8",
+    "label": "Step 8",
+    "shape": "rect"
+   },
+   {
+    "id": "s9",
+    "label": "Step 9",
+    "shape": "rect"
+   },
+   {
+    "id": "s10",
+    "label": "Step 10",
+    "shape": "rect"
+   }
+  ],
+  "edges": [
+   {
+    "from": "s1",
+    "to": "s2"
+   },
+   {
+    "from": "s2",
+    "to": "s3"
+   },
+   {
+    "from": "s3",
+    "to": "s4"
+   },
+   {
+    "from": "s4",
+    "to": "s5"
+   },
+   {
+    "from": "s5",
+    "to": "s6"
+   },
+   {
+    "from": "s6",
+    "to": "s7"
+   },
+   {
+    "from": "s7",
+    "to": "s8"
+   },
+   {
+    "from": "s8",
+    "to": "s9"
+   },
+   {
+    "from": "s9",
+    "to": "s10"
+   },
+   {
+    "from": "s1",
+    "to": "s4",
+    "label": "skip"
+   },
+   {
+    "from": "s2",
+    "to": "s7"
+   },
+   {
+    "from": "s5",
+    "to": "s9"
+   },
+   {
+    "from": "s8",
+    "to": "s3",
+    "label": "retry"
+   },
+   {
+    "from": "s1",
+    "to": "s10"
+   }
+  ]
+ }
+}

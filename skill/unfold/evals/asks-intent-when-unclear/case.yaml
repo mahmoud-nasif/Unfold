@@ -1,0 +1,8 @@
+schema_version: "1.1"
+name: asks-intent-when-unclear
+expected_outcome: |
+  The prompt gives no purpose, so before scanning Claude asks one question about what the map is for,
+  offering Learn the codebase, Demonstrate my work, Explain a specific detail, Review a change and Other,
+  and asks no more than two further follow-ups in the same batch.
+context:
+  scaffold_script: place-files.sh

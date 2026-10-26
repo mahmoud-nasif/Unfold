@@ -1,0 +1,9 @@
+schema_version: "1.1"
+name: intent-demonstrate
+expected_outcome: |
+  Claude infers the intent *demonstrate* from the prompt, asks at most two follow-ups (such as the
+  audience) and asks the user for screenshots or videos of the components it will show. The page is shallow
+  (two or three levels), its notes lead with outcomes rather than function names, meta.intent is
+  "demonstrate", and the result validates.
+context:
+  scaffold_script: place-files.sh

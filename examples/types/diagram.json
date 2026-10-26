@@ -1,0 +1,552 @@
+{
+ "meta": {
+  "title": "Diagram types",
+  "subtitle": "One level of each kind",
+  "summary": "A gallery of every level type Unfold can draw, each with a small realistic example."
+ },
+ "root": {
+  "type": "architecture",
+  "caption": "Every diagram type Unfold draws. Click one to open it.",
+  "nodes": [
+   {
+    "id": "cls",
+    "label": "Class diagram",
+    "icon": "code",
+    "children": {
+     "type": "class",
+     "caption": "The order domain: what an order holds and who owns what.",
+     "nodes": [
+      {
+       "id": "entity",
+       "label": "Entity",
+       "stereotype": "abstract",
+       "fields": [
+        "# id: UUID",
+        "# created: datetime"
+       ],
+       "methods": [
+        "+ save(): None"
+       ]
+      },
+      {
+       "id": "order",
+       "label": "Order",
+       "fields": [
+        "- items: list[Item]",
+        "- status: Status"
+       ],
+       "methods": [
+        "+ total(): Money",
+        "+ cancel(): None"
+       ]
+      },
+      {
+       "id": "item",
+       "label": "Item",
+       "fields": [
+        "- sku: str",
+        "- qty: int"
+       ],
+       "methods": [
+        "+ price(): Money"
+       ]
+      },
+      {
+       "id": "payable",
+       "label": "Payable",
+       "stereotype": "interface",
+       "fields": [],
+       "methods": [
+        "+ charge(amount): Receipt"
+       ]
+      },
+      {
+       "id": "customer",
+       "label": "Customer",
+       "fields": [
+        "- email: str"
+       ],
+       "methods": [
+        "+ orders(): list[Order]"
+       ]
+      }
+     ],
+     "edges": [
+      {
+       "from": "order",
+       "to": "entity",
+       "rel": "inherits"
+      },
+      {
+       "from": "customer",
+       "to": "entity",
+       "rel": "inherits"
+      },
+      {
+       "from": "order",
+       "to": "payable",
+       "rel": "implements"
+      },
+      {
+       "from": "order",
+       "to": "item",
+       "rel": "composition",
+       "label": "1..*"
+      },
+      {
+       "from": "customer",
+       "to": "order",
+       "rel": "aggregation",
+       "label": "0..*"
+      }
+     ]
+    },
+    "note": "Classes, members, inheritance and ownership in UML notation."
+   },
+   {
+    "id": "c4",
+    "label": "C4 context",
+    "icon": "user",
+    "children": {
+     "type": "c4",
+     "caption": "System context: who uses the shop and what it talks to.",
+     "nodes": [
+      {
+       "id": "buyer",
+       "label": "Buyer",
+       "shape": "person",
+       "role": "input",
+       "note": "Someone ordering online."
+      },
+      {
+       "id": "shop",
+       "label": "Web shop",
+       "tech": "Python, FastAPI",
+       "icon": "server",
+       "note": "Takes orders and payments."
+      },
+      {
+       "id": "db",
+       "label": "Orders DB",
+       "shape": "cylinder",
+       "tech": "PostgreSQL",
+       "color": "teal"
+      },
+      {
+       "id": "psp",
+       "label": "Payment provider",
+       "shape": "cloud",
+       "color": "slate",
+       "role": "output",
+       "tech": "REST"
+      },
+      {
+       "id": "mail",
+       "label": "Email service",
+       "shape": "cloud",
+       "color": "slate",
+       "role": "output",
+       "tech": "SMTP"
+      }
+     ],
+     "edges": [
+      {
+       "from": "buyer",
+       "to": "shop",
+       "label": "browses, orders"
+      },
+      {
+       "from": "shop",
+       "to": "db",
+       "label": "reads, writes"
+      },
+      {
+       "from": "shop",
+       "to": "psp",
+       "label": "charges"
+      },
+      {
+       "from": "shop",
+       "to": "mail",
+       "label": "confirms"
+      }
+     ]
+    },
+    "note": "People, systems and the technology between them."
+   },
+   {
+    "id": "dep",
+    "label": "Deployment",
+    "icon": "server",
+    "children": {
+     "type": "deployment",
+     "caption": "What runs where in production.",
+     "nodes": [
+      {
+       "id": "lb",
+       "label": "Load balancer",
+       "shape": "node3d",
+       "tech": "nginx",
+       "group": "edge"
+      },
+      {
+       "id": "app1",
+       "label": "App server 1",
+       "shape": "node3d",
+       "tech": "Docker",
+       "group": "cluster"
+      },
+      {
+       "id": "app2",
+       "label": "App server 2",
+       "shape": "node3d",
+       "tech": "Docker",
+       "group": "cluster"
+      },
+      {
+       "id": "pg",
+       "label": "Primary DB",
+       "shape": "cylinder",
+       "tech": "PostgreSQL 16",
+       "group": "data",
+       "color": "teal"
+      },
+      {
+       "id": "replica",
+       "label": "Read replica",
+       "shape": "cylinder",
+       "tech": "PostgreSQL 16",
+       "group": "data",
+       "color": "teal"
+      }
+     ],
+     "edges": [
+      {
+       "from": "lb",
+       "to": "app1"
+      },
+      {
+       "from": "lb",
+       "to": "app2"
+      },
+      {
+       "from": "app1",
+       "to": "pg"
+      },
+      {
+       "from": "app2",
+       "to": "pg"
+      },
+      {
+       "from": "pg",
+       "to": "replica",
+       "label": "streams WAL",
+       "style": "dashed"
+      }
+     ],
+     "groups": [
+      {
+       "id": "edge",
+       "label": "DMZ",
+       "color": "rose"
+      },
+      {
+       "id": "cluster",
+       "label": "Kubernetes",
+       "color": "blue"
+      },
+      {
+       "id": "data",
+       "label": "Data tier",
+       "color": "teal"
+      }
+     ]
+    },
+    "note": "Machines, containers and where each part runs."
+   },
+   {
+    "id": "deps",
+    "label": "Dependencies",
+    "icon": "branch",
+    "children": {
+     "type": "dependency",
+     "caption": "Which package imports which.",
+     "nodes": [
+      {
+       "id": "cli",
+       "label": "cli"
+      },
+      {
+       "id": "api",
+       "label": "api"
+      },
+      {
+       "id": "core",
+       "label": "core"
+      },
+      {
+       "id": "store",
+       "label": "store"
+      },
+      {
+       "id": "util",
+       "label": "util"
+      }
+     ],
+     "edges": [
+      {
+       "from": "cli",
+       "to": "core"
+      },
+      {
+       "from": "api",
+       "to": "core"
+      },
+      {
+       "from": "core",
+       "to": "store"
+      },
+      {
+       "from": "core",
+       "to": "util"
+      },
+      {
+       "from": "store",
+       "to": "util"
+      },
+      {
+       "from": "api",
+       "to": "util"
+      }
+     ]
+    },
+    "note": "Which module imports which."
+   },
+   {
+    "id": "tree",
+    "label": "Mind map",
+    "icon": "list",
+    "children": {
+     "type": "tree",
+     "caption": "What the docs cover.",
+     "nodes": [
+      {
+       "id": "docs",
+       "label": "Docs"
+      },
+      {
+       "id": "start",
+       "label": "Getting started"
+      },
+      {
+       "id": "guides",
+       "label": "Guides"
+      },
+      {
+       "id": "ref",
+       "label": "Reference"
+      },
+      {
+       "id": "install",
+       "label": "Install"
+      },
+      {
+       "id": "first",
+       "label": "First map"
+      },
+      {
+       "id": "edit",
+       "label": "Editing"
+      },
+      {
+       "id": "tour",
+       "label": "Tours"
+      },
+      {
+       "id": "schema",
+       "label": "Schema"
+      },
+      {
+       "id": "cli2",
+       "label": "CLI"
+      }
+     ],
+     "edges": [
+      {
+       "from": "docs",
+       "to": "start"
+      },
+      {
+       "from": "docs",
+       "to": "guides"
+      },
+      {
+       "from": "docs",
+       "to": "ref"
+      },
+      {
+       "from": "start",
+       "to": "install"
+      },
+      {
+       "from": "start",
+       "to": "first"
+      },
+      {
+       "from": "guides",
+       "to": "edit"
+      },
+      {
+       "from": "guides",
+       "to": "tour"
+      },
+      {
+       "from": "ref",
+       "to": "schema"
+      },
+      {
+       "from": "ref",
+       "to": "cli2"
+      }
+     ]
+    },
+    "note": "A hierarchy, in order."
+   },
+   {
+    "id": "bt",
+    "label": "Behaviour tree",
+    "icon": "flag",
+    "children": {
+     "type": "behaviour",
+     "caption": "Enter the room: go through the door, or find another way in.",
+     "nodes": [
+      {
+       "id": "root",
+       "label": "Enter room",
+       "bt": "selector",
+       "shape": "rect"
+      },
+      {
+       "id": "door",
+       "label": "Through door",
+       "bt": "sequence",
+       "shape": "rect"
+      },
+      {
+       "id": "window",
+       "label": "Through window",
+       "bt": "sequence",
+       "shape": "rect"
+      },
+      {
+       "id": "isopen",
+       "label": "Door open?",
+       "bt": "condition",
+       "shape": "pill"
+      },
+      {
+       "id": "walk",
+       "label": "Walk in",
+       "bt": "action",
+       "shape": "rect"
+      },
+      {
+       "id": "close",
+       "label": "Close door",
+       "bt": "action",
+       "shape": "rect"
+      },
+      {
+       "id": "retry",
+       "label": "Retry x3",
+       "bt": "decorator",
+       "shape": "rect"
+      },
+      {
+       "id": "climb",
+       "label": "Climb in",
+       "bt": "action",
+       "shape": "rect"
+      },
+      {
+       "id": "openw",
+       "label": "Open window",
+       "bt": "action",
+       "shape": "rect"
+      }
+     ],
+     "edges": [
+      {
+       "from": "root",
+       "to": "door"
+      },
+      {
+       "from": "root",
+       "to": "window"
+      },
+      {
+       "from": "door",
+       "to": "isopen"
+      },
+      {
+       "from": "door",
+       "to": "walk"
+      },
+      {
+       "from": "door",
+       "to": "close"
+      },
+      {
+       "from": "window",
+       "to": "retry"
+      },
+      {
+       "from": "retry",
+       "to": "openw"
+      },
+      {
+       "from": "window",
+       "to": "climb"
+      }
+     ]
+    },
+    "note": "Sequences, selectors and actions, as py_trees runs them."
+   },
+   {
+    "id": "tl",
+    "label": "Timeline",
+    "icon": "clock",
+    "children": {
+     "type": "timeline",
+     "caption": "How the project grew.",
+     "nodes": [
+      {
+       "id": "v1",
+       "label": "Story engine",
+       "date": "0.1.0"
+      },
+      {
+       "id": "v2",
+       "label": "Code reader",
+       "date": "0.2.0"
+      },
+      {
+       "id": "v3",
+       "label": "Five diagram types",
+       "date": "0.3.0"
+      },
+      {
+       "id": "v4",
+       "label": "Routing, tours, installers",
+       "date": "0.4.0",
+       "color": "teal"
+      }
+     ],
+     "edges": []
+    },
+    "note": "Events in order along a time axis."
+   }
+  ],
+  "edges": []
+ }
+}

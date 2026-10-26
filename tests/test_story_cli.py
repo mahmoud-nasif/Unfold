@@ -270,9 +270,14 @@ def test_validator_and_engine_agree_on_icons():
 
 def test_validator_and_engine_agree_on_shapes_and_colours():
     eng = _engine()
-    shapes = set(re.findall(r"'([a-z]+)'", re.search(r"var SHAPE_ORDER=\[(.*?)\]", eng).group(1)))
+    shapes = set(re.findall(r"'([a-z0-9]+)'", re.search(r"var SHAPE_ORDER=\[(.*?)\]", eng).group(1)))
     colors = set(re.findall(r"'([a-z]+)'", re.search(r"var COLORS=\[(.*?)\]", eng).group(1)))
     assert shapes == set(story.SHAPES) and colors == set(story.COLORS)
+
+
+def test_validator_and_engine_agree_on_level_types():
+    block = re.search(r"var TYPE_NAMES=\{(.*?)\};", _engine()).group(1)
+    assert set(re.findall(r"([a-z0-9]+):'", block)) == set(story.LEVEL_TYPES)
 
 
 def test_engine_never_contains_a_raw_script_close():
@@ -290,8 +295,12 @@ def test_built_examples_are_up_to_date(path):
     story.inline_media(data, path.parent)
     page = path.parent / "index.html"
     assert page.exists(), "run: make examples"
-    expected = story.embed(data, TEMPLATE.read_text(encoding="utf-8"))
-    assert page.read_text(encoding="utf-8") == expected, "run: make examples"
+    built = story.extract(page.read_text(encoding="utf-8"))
+    repo = built["meta"].pop("repo", None)  # pinned at build time by `make examples` (--repo .)
+    assert built == data, "run: make examples"
+    if repo:
+        data["meta"]["repo"] = repo
+    assert page.read_text(encoding="utf-8") == story.embed(data, TEMPLATE.read_text(encoding="utf-8")), "run: make examples"
 
 
 def test_template_matches_engine_sources():

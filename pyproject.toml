@@ -1,0 +1,50 @@
+# The skill's standard-library scripts as a small CLI, so scan, check, build and extract work
+# without an agent (e.g. in CI). Not published yet. The name "unfold" is taken on PyPI, hence
+# the distribution name "unfold-map"; the command is still `unfold`.
+#
+#   python -m pip wheel . --no-deps -w dist     # build
+#   pipx install unfold-map  /  uvx --from unfold-map unfold scan .
+#
+# The skill folder is shipped as the package data "unfold_map/skill" (without evals/), so the
+# template and scripts in the wheel are exactly the ones the skill uses.
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "unfold-map"
+version = "0.4.0"
+description = "Map a codebase into an interactive, zoomable diagram page: the scanner, validator and page builder behind the Unfold skill."
+readme = "README.md"
+requires-python = ">=3.8"
+license = { text = "MIT" }
+authors = [{ name = "Mahmoud Nasif" }]
+keywords = ["architecture", "diagram", "codebase", "onboarding", "documentation", "agent-skills"]
+classifiers = [
+  "Programming Language :: Python :: 3",
+  "License :: OSI Approved :: MIT License",
+  "Operating System :: OS Independent",
+  "Topic :: Software Development :: Documentation",
+  "Environment :: Console",
+]
+dependencies = []
+
+[project.urls]
+Homepage = "https://github.com/mahmoud-nasif/Unfold"
+Changelog = "https://github.com/mahmoud-nasif/Unfold/blob/main/CHANGELOG.md"
+
+[project.scripts]
+unfold = "unfold_map.cli:main"
+unfold-map = "unfold_map.cli:main"
+
+[tool.setuptools]
+packages = ["unfold_map", "unfold_map.skill", "unfold_map.skill.scripts"]
+include-package-data = false
+
+[tool.setuptools.package-dir]
+unfold_map = "src/unfold_map"
+"unfold_map.skill" = "skill/unfold"
+"unfold_map.skill.scripts" = "skill/unfold/scripts"
+
+[tool.setuptools.package-data]
+"unfold_map.skill" = ["SKILL.md", "LICENSE.txt", "assets/*", "references/*"]

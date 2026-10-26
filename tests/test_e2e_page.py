@@ -68,7 +68,7 @@ def crumbs(pg):
 
 def data(pg):
     pg.wait_for_timeout(450)  # the draft is written after a short debounce
-    return pg.evaluate("JSON.parse(localStorage.getItem(Object.keys(localStorage).find(k=>k.startsWith('unfold:')))||'null')")
+    return pg.evaluate("JSON.parse(localStorage.getItem(Object.keys(localStorage).find(k=>k.startsWith('unfold:')&&!k.startsWith('unfold:about:')))||'null')")
 
 
 # ---------- viewing ----------
@@ -283,7 +283,7 @@ def test_about_card_shows_summary_once(browser):
     c = browser.new_context(viewport={"width": 1400, "height": 860})
     pg = c.new_page(); pg.goto(PAGE); pg.wait_for_timeout(1200)
     about = pg.locator("#ss-about")
-    assert about.is_visible() and "zoomable map" in about.inner_text() and "Outline" in about.inner_text()
+    assert about.is_visible() and "interactive map" in about.inner_text() and "Outline" in about.inner_text()
     pg.click('[data-act="about-close"]')
     pg.reload(); pg.wait_for_timeout(1200)
     assert not pg.locator("#ss-about").is_visible()
