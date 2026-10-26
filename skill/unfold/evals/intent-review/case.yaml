@@ -1,0 +1,9 @@
+schema_version: "1.1"
+name: intent-review
+expected_outcome: |
+  Claude infers the intent *review*, reads the diff between main and cancel-orders before mapping, and
+  builds a page scoped to what the change touches (the new cancel route, cancel_order and is_cancelled in
+  the order store, and the worker's new early exit) plus one ring of neighbours. Touched nodes are tagged
+  (changed or added) with notes on what changed and why, meta.intent is "review", and the page validates.
+context:
+  scaffold_script: place-files.sh

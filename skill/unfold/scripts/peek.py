@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Print only the code you need: windows around file:line, file:start-end or file:symbol.
 
-    python peek.py ROOT REF [REF ...] [--context N] [--max LINES]
+    python peek.py ROOT REF [REF ...] [--context N] [--max LINES] [--budget TOKENS]
 
 REF examples:
     orderly/worker/main.py:10          10 lines either side of line 10 (see --context)
@@ -9,8 +9,10 @@ REF examples:
     orderly/worker/main.py:handle      the definition of `handle` to the end of its block
     orderly/api/routes.py              the whole file (subject to --max)
 
-Overlapping windows in one file are merged. Output stops at --max lines in total, so a
-reading pass has a fixed cost. Standard library only, Python 3.8+.
+Overlapping windows in one file are merged. Output stops at --max lines or --budget
+tokens (about 4 characters each), whichever comes first, so a reading pass has a fixed
+cost; the last line reports the approximate tokens printed. Prefer file:symbol over
+wide line ranges. Standard library only, Python 3.8+.
 """
 import argparse
 import re
@@ -63,6 +65,8 @@ def main(argv=None):
     ap.add_argument("refs", nargs="+")
     ap.add_argument("--context", type=int, default=10)
     ap.add_argument("--max", type=int, default=400, help="total line budget (default 400)")
+    ap.add_argument("--budget", type=int, default=4000, metavar="TOKENS",
+                    help="total token budget, ~4 chars each (default 4000; 0 = no cap)")
     a = ap.parse_args(argv)
     spans, errors = {}, []
     for ref in a.refs:
@@ -72,7 +76,14 @@ def main(argv=None):
             errors.append(str(ex))
             continue
         spans.setdefault(f, []).append([s, e])
-    budget = a.max
+    budget, chars = a.max, (a.budget * 4 - 120 if a.budget else float("inf"))  # reserve room for the trailer
+    out, stopped = [], None
+
+    def emit(line):
+        nonlocal chars
+        out.append(line)
+        chars -= len(line) + 1
+
     for f, ranges in spans.items():
         p = Path(a.root) / f
         try:
@@ -88,18 +99,30 @@ def main(argv=None):
                 merged[-1][1] = max(merged[-1][1], e)
             else:
                 merged.append([s, e])
-        print(f"== {f} ({len(lines)} lines)")
+        emit(f"== {f} ({len(lines)} lines)")
         for s, e in merged:
-            if budget <= 0:
+            if budget <= 0 or chars <= 0:
                 break
             e = min(e, s + budget - 1)
             for n in range(s, e + 1):
-                print(f"{n:>5}  {lines[n - 1]}")
+                line = f"{n:>5}  {lines[n - 1]}"
+                if len(line) + 1 > chars:
+                    e = n - 1
+                    stopped = f"{a.budget}-token budget"
+                    break
+                emit(line)
             budget -= e - s + 1
-            print("   ...")
+            emit("   ...")
         if budget <= 0:
-            print(f"[stopped: {a.max}-line budget reached]")
+            stopped = stopped or f"{a.max}-line budget"
+        if stopped:
+            emit(f"[stopped: {stopped} reached; peek a narrower symbol or range]")
             break
+    text = "\n".join(out)
+    if out:
+        print(text)
+        print(f"[≈{(len(text) + 3) // 4} tokens, {a.max - max(budget, 0)} of {a.max} lines"
+              + (f", budget {a.budget} tokens]" if a.budget else "]"))
     for e in errors:
         print(f"error: {e}", file=sys.stderr)
     return 1 if errors and not spans else 0

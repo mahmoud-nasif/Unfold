@@ -1,0 +1,12 @@
+# Source archives (GitHub "Download ZIP", release tarballs) carry what users need:
+# the skill, README, licence and examples. Developer tooling stays in the repository.
+/tests              export-ignore
+/tools              export-ignore
+/engine             export-ignore
+/.github            export-ignore
+/skill/unfold/evals export-ignore
+/Makefile           export-ignore
+/pytest.ini         export-ignore
+/requirements-dev.txt export-ignore
+/CONTRIBUTING.md    export-ignore
+/docs/ROADMAP.md    export-ignore

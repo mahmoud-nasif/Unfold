@@ -1,0 +1,8 @@
+schema_version: "1.1"
+name: intent-learn
+expected_outcome: |
+  Claude infers the intent *learn* from the prompt without asking for it, maps the whole orderly
+  system (API, store, queue, worker, carrier) with even depth and extra depth on the worker, writes a
+  full glossary and a source on every node, sets meta.intent to "learn", and suggests where to start reading.
+context:
+  scaffold_script: place-files.sh

@@ -10,10 +10,13 @@ How to turn a codebase into levels that answer *what comes in, what happens, wha
 - [Drawing a process level](#drawing-a-process-level)
 - [Drawing an architecture level](#drawing-an-architecture-level)
 - [Sequence, state and data levels](#sequence-state-and-data-levels)
+- [Class, C4, deployment and tree levels](#class-c4-deployment-and-tree-levels)
 - [Visuals](#visuals)
 - [Where to stop](#where-to-stop)
 - [Patterns by kind of codebase](#patterns-by-kind-of-codebase)
 - [Words](#words)
+- [Token budget](#token-budget)
+- [Re-mapping](#re-mapping)
 - [Before you build](#before-you-build)
 
 ## Finding the boundary
@@ -93,6 +96,16 @@ Mixed cases are common. A service is often an architecture of a few parts, and i
 - Keys are marked `PK` or `FK`. Edges carry cardinality (`1..*`, `0..1`).
 - The scan lists `.msg`, `.srv`, `.proto` and `.sql` files under Languages, and the outline shows model classes.
 
+## Class, C4, deployment and tree levels
+
+- **Class** (`class`): for an object model or a plugin hierarchy that a newcomer must extend. Take members from `scan_repo.py --outline`: public fields and methods only, with `+`/`-`/`#` visibility. Use `rel` on edges: `inherits` for subclassing, `implements` for interfaces and protocols, `composition` when the owner creates and destroys the part, `aggregation` when it only holds one, `dependency` for "uses it in a method". Keep it to the 5 to 10 classes that matter.
+- **C4** (`c4`): when the reader needs the system in its world first: `person` nodes for users and roles, the system's containers with `tech`, external systems as `cloud`. Use groups as the system boundary.
+- **Deployment** (`deployment`): from Dockerfiles, compose files, Kubernetes manifests, Terraform and launch files. One `node3d` per host, VM, board or pod, `tech` for its runtime, groups for environments or networks.
+- **Dependencies** (`dependency`): from the scan's import graph, for refactors and reviews. Draw importer → imported; leave out the standard library.
+- **ROS 2 graph**: stay with `architecture`: nodes as `rounded` with the `robot` or `chip` icon, topics as edge labels (`/camera/image_raw`), services and actions as dashed edges. Use a `sequence` for one action's goal–feedback–result exchange.
+- **Behaviour trees** (`behaviour`): from py_trees, BehaviorTree.CPP or Nav2 XML. One node per tree node with `bt`, edges parent → child in the order the children run.
+- **Tree** (`tree`) for a config, menu or docs hierarchy; **timeline** (`timeline`) for releases, migrations or a boot sequence, each node with a `date`.
+
 ## Visuals
 
 Screenshots, photos of hardware, recorded demos and existing architecture images make a page far easier to follow.
@@ -136,11 +149,61 @@ Typical complete maps:
 - Notes are 1 to 3 sentences, for detail that would clutter the canvas.
 - Use the user's language and their team's vocabulary.
 
+## Token budget
+
+The aim is a grounded map for the fewest tokens. Every tool prints its cost on the last line (`≈N tokens`, about 4 characters each), so you can see where the budget goes.
+
+| Step | Default cap | Cheaper still |
+|---|---|---|
+| `scan_repo.py REPO` | 4000 tokens (`--budget N`, `0` for none) | `--section NAME` for one part: `summary`, `entry`, `io` or `io.http` / `io.env` / …, `readfirst`, `layout`, `manifests`, `imports`, `changed` |
+| `scan_repo.py REPO --outline [PREFIX]` | 4000 tokens | one top-level part per call; the cut-off line names the prefixes left |
+| `peek.py REPO ref …` | 400 lines or 4000 tokens (`--max`, `--budget`) | `file:symbol` instead of ranges; all refs in one call so windows merge |
+| Reading a whole file | about 10 tokens per line | only for the 3 to 8 files with the core logic |
+
+What the scan already does for you:
+
+- **Priority cut.** The summary, entry points, I/O signals and the read-first list are filled first; long lists end with `… N more; rerun with --section X` (or `--outline PREFIX`). Ask for more only when a node needs it.
+- **Deduplication.** A signal seen in many places (the same env var in 40 files) is one line with a count and the first locations.
+- **Skips.** Vendored and build folders (`node_modules`, `vendor`, `dist`, `target`, `.venv`, …), generated files (`_pb2.py`, `.pb.go`, `@generated` or `DO NOT EDIT` headers), minified bundles, lock files and everything `.gitignore`d (via `git ls-files` in a work tree). The summary counts what was skipped.
+- **Cache.** Per-file results are stored under `$XDG_CACHE_HOME/unfold/` (or `$UNFOLD_CACHE_DIR`), keyed by size and modification time, never in the repo. A second scan or an outline after a scan only reads changed files. `--no-cache` turns it off.
+
+How to spend it:
+
+1. README and the Map. Decide the 4 to 10 parts from the layout, imports and signals.
+2. Outline only the parts you will open, one `--outline PREFIX` at a time.
+3. One `peek` call per part, listing every symbol you will cite. Mark those nodes `"confidence": "peeked"`.
+4. Read whole files only where a process level needs the real control flow; mark those nodes `"read"`. Nodes drawn from names, docs or the user's words are `"inferred"`, and you list them to the user.
+5. Stop when every node you plan to draw has a `source`. More reading rarely changes the overview.
+6. Write `diagram.json` once, then change it with small edits. Review with `unfold.py check` and `unfold.py outline` rather than printing the JSON or the page.
+
+## Re-mapping
+
+A map stays useful only if it follows the code. Keep two files side by side:
+
+- `diagram.generated.json`: exactly what you generated, never edited by hand;
+- `diagram.json`: the map people edit (if they edited the page, refresh it with `unfold.py extract page.html diagram.json`).
+
+To re-map:
+
+1. Find what changed: `scan_repo.py REPO --changed-since <meta.repo.commit>` lists changed and deleted files and only their signals. `unfold.py drift diagram.json --repo REPO` lists nodes whose source file, symbol or line no longer matches, and where a moved symbol went.
+2. Copy `diagram.generated.json` to `diagram.generated.new.json` and update only the affected nodes. **Keep ids stable**: the same part keeps the same id, so the merge can match it.
+3. Merge: `unfold.py merge --base diagram.generated.json --ours diagram.json --theirs diagram.generated.new.json -o diagram.json`.
+4. Optionally review: `unfold.py diff diagram.generated.json diagram.generated.new.json --page diff.html` shows added, removed and changed elements.
+5. Replace `diagram.generated.json` with the new one, then `unfold.py build diagram.json page.html --repo REPO` to pin the new commit.
+
+The merge decides field by field, per node, edge and group, matched by id (edges by their ends):
+
+- A field a person changed (ours differs from base) is kept; otherwise the new scan's value wins. Positions, labels, notes, media and colours a person set therefore survive.
+- Nodes a person deleted stay deleted. Nodes the scan no longer finds are removed, unless a person edited them.
+- New nodes are added without positions, so the level is auto-laid out. If a person arranged every node of that level by hand, new nodes go in a column on the right instead.
+- When both sides changed the same field, the person's value is kept and the conflict is printed. Tell the user about every conflict.
+
 ## Before you build
 
 - [ ] The overview has marked inputs and outputs, and data flows from one to the other.
 - [ ] Every opened node has a child level with the right type (architecture or process).
 - [ ] Process levels start at an input pill and end at output pills.
-- [ ] Nodes taken from code have `source`. Anything inferred is listed for the user.
+- [ ] Nodes taken from code have `source` and `confidence`. Anything inferred is listed for the user.
+- [ ] `unfold.py drift diagram.json --repo REPO` reports no drift.
 - [ ] `unfold.py check` passes, and each remaining warning is deliberate.
 - [ ] The `unfold.py outline` reads like a table of contents for the system.

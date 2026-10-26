@@ -1,0 +1,60 @@
+name: Unfold drift check
+description: Fail when a diagram's node sources (files, symbols, lines) no longer match the code, and optionally comment on the pull request.
+inputs:
+  diagram:
+    description: Path to the diagram JSON or built page (e.g. docs/map/diagram.json).
+    required: true
+  repo:
+    description: Folder the node source paths are relative to.
+    required: false
+    default: "."
+  comment:
+    description: "true to post the drift report as a pull request comment when something drifted."
+    required: false
+    default: "false"
+  python-version:
+    description: Python used to run the check (3.8 or later).
+    required: false
+    default: "3.12"
+  github-token:
+    description: Token for the pull request comment (needs pull-requests write).
+    required: false
+    default: ${{ github.token }}
+outputs:
+  drifted:
+    description: "Number of sources that no longer match the code."
+    value: ${{ steps.drift.outputs.drifted }}
+runs:
+  using: composite
+  steps:
+    - uses: actions/setup-python@v5
+      with:
+        python-version: ${{ inputs.python-version }}
+    - id: drift
+      shell: bash
+      env:
+        UNFOLD_CLI: ${{ github.action_path }}/../../../skill/unfold/scripts/unfold.py
+        DIAGRAM: ${{ inputs.diagram }}
+        REPO: ${{ inputs.repo }}
+      run: |
+        set +e
+        python "$UNFOLD_CLI" drift "$DIAGRAM" --repo "$REPO" > "$RUNNER_TEMP/unfold-drift.txt"
+        code=$?
+        set -e
+        cat "$RUNNER_TEMP/unfold-drift.txt"
+        python "$UNFOLD_CLI" drift "$DIAGRAM" --repo "$REPO" --json > "$RUNNER_TEMP/unfold-drift.json" || true
+        echo "drifted=$(python -c 'import json,sys; print(len(json.load(open(sys.argv[1]))["drifted"]))' "$RUNNER_TEMP/unfold-drift.json")" >> "$GITHUB_OUTPUT"
+        { echo "### Unfold drift check"; echo '```'; cat "$RUNNER_TEMP/unfold-drift.txt"; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+        echo "code=$code" >> "$GITHUB_OUTPUT"
+    - if: steps.drift.outputs.code != '0' && inputs.comment == 'true' && github.event_name == 'pull_request'
+      shell: bash
+      env:
+        GH_TOKEN: ${{ inputs.github-token }}
+        PR: ${{ github.event.pull_request.number }}
+        DIAGRAM: ${{ inputs.diagram }}
+      run: |
+        { echo "**Unfold:** the map in \`$DIAGRAM\` no longer matches the code. Update the listed node sources, or re-map."; echo; echo '```'; cat "$RUNNER_TEMP/unfold-drift.txt"; echo '```'; } > "$RUNNER_TEMP/unfold-comment.md"
+        gh pr comment "$PR" --repo "$GITHUB_REPOSITORY" --body-file "$RUNNER_TEMP/unfold-comment.md"
+    - if: steps.drift.outputs.code != '0'
+      shell: bash
+      run: exit 1

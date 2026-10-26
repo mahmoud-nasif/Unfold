@@ -9,6 +9,7 @@ from playwright.sync_api import sync_playwright
 
 ROOT = Path(__file__).resolve().parents[1]
 PAGE = (ROOT / "examples" / "unfold" / "index.html").as_uri()
+TYPES = (ROOT / "examples" / "types" / "index.html").as_uri()
 OUT = ROOT / "docs" / "images"
 
 
@@ -110,6 +111,22 @@ def main():
         close_about(pg)
         pg.hover('.node[data-id="peek"]'); pg.wait_for_timeout(800)
         pg.screenshot(path=str(OUT / "trace-dark.png"))
+        # teaching: a tour step with its spotlight, and search by file path
+        pg = b.new_page(viewport={"width": 1440, "height": 860}); pg.goto(PAGE); pg.wait_for_timeout(1500)
+        close_about(pg)
+        pg.click('[data-act="tours"]'); pg.wait_for_timeout(300); pg.click('[data-act="tour-go"]'); pg.wait_for_timeout(1200)
+        for _ in range(3):
+            pg.keyboard.press("ArrowRight"); pg.wait_for_timeout(1500)
+        pg.screenshot(path=str(OUT / "tour.png"))
+        pg.keyboard.press("Escape"); pg.wait_for_timeout(600)
+        pg.keyboard.press("/"); pg.keyboard.type("peek.py"); pg.wait_for_timeout(400)
+        pg.screenshot(path=str(OUT / "search.png"))
+        # one shot per newer level type, from the types gallery
+        for node, name in (("cls", "class.png"), ("c4", "c4.png"), ("dep", "deployment.png"), ("bt", "behaviour.png")):
+            pg = b.new_page(viewport={"width": 1440, "height": 860}); pg.goto(TYPES); pg.wait_for_timeout(1500)
+            close_about(pg)
+            pg.click(f'.node[data-id="{node}"] .body'); pg.wait_for_timeout(1700)
+            pg.screenshot(path=str(OUT / name))
         b.close()
     print("updated", ", ".join(sorted(f.name for f in OUT.iterdir())))
 

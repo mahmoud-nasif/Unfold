@@ -4,6 +4,32 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-10-26
+
+Unfold now teaches as well as maps: guided tours, presentation mode and search. Links route around boxes and can be bent by hand. Seven more diagram types, exports to the tools people already use, a token budget for reading code, a drift check, and one-line installs for many agents.
+
+### Added
+- Routing: edges go around nodes, ends are spread along each side, and later routes avoid lanes and crossings earlier ones took. Per-level and per-edge paths: `curved` (default), `orthogonal` or `straight` (`route`).
+- Bend points: `edge.points`. Drag an edge's midpoint handle to add one, drag to move (it snaps level with its neighbours), double-click to remove; **Reset path** and **Tidy** clear them.
+- Linking: release on or near a node to link it; a **Link** button links the selection to the next node clicked. New shapes land in free space.
+- Media: several items per node (`media` may be a list), a thumbnail badge, a gallery viewer with arrow keys, a **Media** button in the toolbar, and files dropped on a node attach to it.
+- Level types `class` (compartments, `methods`, `stereotype`, UML `rel` on edges), `c4` (`person` shape, `tech` line), `deployment` (`node3d` shape), `dependency`, `tree`, `behaviour` (`bt` roles, execution order kept) and `timeline` (`date`), with tree and timeline layouts.
+- Tours: `meta.tours` with steps across levels, spotlight, speaker `notes` and `quiz` steps; a generated tour when none is written. Presentation mode (`P`), notes window (`N`), search (`/`) across levels, sources and glossary.
+- `meta.intent` and `meta.audience`; the skill asks for the intent first (`references/intents.md`). `learn` pages offer the tour, `demonstrate` pages offer to present.
+- `confidence` on nodes (inferred parts are marked), `meta.repo` permalinks to the mapped commit, and `diff` marks with a legend.
+- Export: PNG and SVG of a level, a README embed, PDF of all levels via print, Mermaid (Markdown, all levels), draw.io (one linked page per level) and Excalidraw. Import from Mermaid flowchart, sequence, state, class and ER diagrams.
+- `scan_repo.py`: `--budget`, `--section`, `--changed-since`, a per-file cache, cost footers, skipping of generated, vendored, minified and ignored files, collapsed repeats, and detection for Spring, NestJS, FastAPI, Flask, Django, Express, ASP.NET, gRPC, Kafka, RabbitMQ, NATS, Redis, Terraform, Kubernetes and GitHub Actions. `peek.py --budget`.
+- `unfold.py drift`, `diff`, `merge` and `build --repo`; a composite GitHub Action for drift checks.
+- Installers: the skills CLI, a Claude Code plugin marketplace, `install.sh` and `install.ps1` for 20 agents, and the `unfold-map` Python package (not yet published).
+- Examples: a gallery page and a map of every diagram type. Eval cases for each intent.
+
+### Changed
+- Auto-layout keeps a lane for every long edge, straightens chains, and lets groups that follow each other share a line instead of stepping diagonally.
+- Ports keep their size on screen at any zoom and have a wider grab area.
+- The example map's sources use full paths, carry confidence marks and pass `drift`; it has a tour that ends with a question.
+- `.gitattributes` keeps developer tooling out of source archives.
+
+
 ## [0.3.0] - 2026-10-25
 
 Renamed to **Unfold**. The map now speaks five diagram languages, opens media, guides first-time readers, and the skill reads code in budgeted stages.

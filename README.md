@@ -1,121 +1,198 @@
+<div align="center">
+
 # Unfold
 
-**Zoom into any codebase.** Unfold is a Claude skill that reads a repository and folds it out into an interactive map of what the system does. You start with an architecture overview, with inputs and outputs marked. Click a part and it opens into whatever fits its code: a deeper architecture, a process flowchart, a sequence diagram, a state machine, a data model, or a screenshot or video. Hover anything to trace its data and read a one-line hint. Then edit it by hand, like any diagramming tool.
+**Turn any codebase into an interactive map that explains it.**
 
-![Exploring: hover to trace, click to open a module, zoom out to leave, open a sequence and a data model](docs/images/explore.gif)
+[![CI](https://github.com/mahmoud-nasif/Unfold/actions/workflows/ci.yml/badge.svg)](https://github.com/mahmoud-nasif/Unfold/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/mahmoud-nasif/Unfold)](https://github.com/mahmoud-nasif/Unfold/releases/latest)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![Agent Skill](https://img.shields.io/badge/Agent%20Skill-Claude%20Code%20%C2%B7%20Codex%20%C2%B7%20Cursor%20%C2%B7%20more-555)](docs/install.md)
 
-## Why
+[Gallery](https://mahmoud-nasif.github.io/Unfold/) · [Install](#install) · [Features](#features) · [How it works](#how-it-works) · [Changelog](CHANGELOG.md)
 
-Architecture diagrams are usually too flat to teach anything or too dense to read. They also go stale, because nobody can tell which box is which file. Unfold keeps every level small, puts depth one click away, and ties every box to the source it came from. At each level it answers *what comes in, what happens to it, what comes out*, so someone who has never seen the project ends up able to explain it like its developer.
+</div>
 
-## One map, five kinds of diagram
+Unfold is an agent skill for Claude Code, Codex, Cursor and other coding agents. Point it at a repository and it writes one HTML page that explains the system. The page starts with an architecture overview, its inputs and outputs marked. Each part opens into the diagram that fits its code: a flowchart for a request handler, a sequence diagram for a handshake, a state machine for a mode manager, a class diagram for an object model.
 
-| | |
+Every box cites the file and symbol it came from. A guided tour walks a newcomer through the map. A built-in editor lets you reshape it for onboarding, a design review or a talk.
+
+![Exploring a map: hover to trace data, open a part, step back out](docs/images/explore.gif)
+
+## Why Unfold
+
+Most tools give you **a picture of a repository**. Unfold gives you **a map you can learn the codebase from, check against the code, and change**.
+
+| Instead of… | Unfold gives you |
 |---|---|
-| ![Architecture overview](docs/images/overview.png) **Architecture.** Parts, stores and external systems, and how data moves between them. Every overview starts here. | ![Process](docs/images/process.png) **Process.** What one part does, step by step: steps, decisions, loops. |
-| ![Sequence](docs/images/sequence.png) **Sequence.** Who calls whom, in time order: a request lifecycle, an action goal, a handshake. | ![State machine](docs/images/state.png) **State machine.** Modes and the events that move between them. |
-| ![Data model](docs/images/data.png) **Data model.** Entities, fields and keys, with relations by cardinality. | ![Hover tracing in dark mode](docs/images/trace-dark.png) **Media and tracing.** Screenshots and videos open in a viewer. Hover traces data upstream and downstream, with a one-line hint. |
+| One generated diagram that is either too dense to read or too shallow to teach | A small overview where every part opens into the diagram its code calls for: a flowchart for a handler, a sequence for a handshake, a state machine for a mode manager, a class diagram for an object model |
+| A diagram you have to take on trust | A source reference on every box, a mark for each part saying whether it was read or inferred, and a drift check that fails CI when the code moves on |
+| A picture to look at | A map that teaches: guided tours across levels with a check-yourself question, search by part or file, and presentation mode with speaker notes |
+| Regenerating from scratch when something is wrong | A full diagram editor, and re-mapping that keeps your edits when the code changes |
+| A hosted service, a separate API key, or one agent only | A skill inside the agent you already use (Claude Code, Codex, Cursor and others). The result is one HTML file that works offline. |
+| A format you're locked into | Export to Mermaid, draw.io, Excalidraw, PNG, SVG and PDF, and import from Mermaid |
 
-## How Claude reads the code
+It also keeps reading costs down on large repositories: the agent maps the repo, outlines it, then reads only the code it needs, within a token budget.
 
-Good maps need real understanding, and big repos don't fit in context. So the skill reads in stages, each one cheaper than reading files whole:
+## What it's for
 
-| Stage | Tool | What it gives |
+| You want to… | Ask your agent | You get |
 |---|---|---|
-| Map | `scan_repo.py REPO` | Languages, layout, manifests (npm, Python, Cargo, Go, CMake, ROS 2, Docker, compose, Make), entry points, imports between parts, and I/O signals with `file:line`: HTTP routes, ROS 2 topics/services/actions with message types, queues, CLI args, env vars, files, databases, network, hardware. Ends with a *read these first* list. |
-| Shape | `scan_repo.py REPO --outline` | Every class and function with its signature and first docstring line. No bodies. |
-| Evidence | `peek.py REPO file:symbol file:line …` | Only the lines that matter, with merged windows and a fixed line budget. |
-| Depth | full files | Only the few files that carry the core logic. |
+| **Get up to speed** on an unfamiliar codebase | *"I'm new here, walk me through this repo."* | The whole system at even depth, a tour from inputs to outputs, and a question at the end to check yourself |
+| **Present** what you built | *"I'm demoing this at Friday's review."* | A shorter map with screenshots of each part, a tour with speaker notes, and presentation mode |
+| **Understand one detail** | *"How does the retry logic in the uploader work?"* | That one flow traced step by step, with a file and line at every step |
+| **Review a change** | *"What does this PR change in the system?"* | The parts the change touches, with what was added, removed or changed marked |
+| **Document or hand over** | *"Document this service for the wiki."* | Full coverage, a source on every box, and a drift check for CI |
 
-Every node keeps a verbatim `source` reference, and the skill tells you which parts it inferred rather than read.
-
-## The editor
-
-![Editing: drop a shape, drag a link to create a node, change its shape and role, nest two modules, tidy](docs/images/edit.gif)
-
-- **Shapes.** A 16-shape palette: component, step, start/end, decision, data, database, document, preparation, cloud, entity table, image, circle, initial and final state, triangle, text. Drag them onto the canvas, or drop image and video files straight on it.
-- **Floating toolbar** for the selection: shape, colour, icon, In/Out role, text size, bold, italic, nest, details (note, source, fields, media upload), duplicate, delete. Edges get style, arrows, label, reverse, and message order in sequences.
-- **Nest** collapses a selection into a module with its boundary edges rewired; **Expand** reverses it. **Group** draws a labelled region; **Tidy** re-runs auto-layout. Each level's diagram type can be switched from the level bar.
-- **Fast building.** Double-click to type. Drag a port to link, or drop it on empty canvas to create a connected node. Tab chains the next step. Marquee select, copy/paste, arrow nudging, undo/redo.
-- **Your edits are kept.** They survive a reload. **Export** downloads the page or its data, and a published claude.ai artifact can **Save** into itself.
-
-## Getting around
-
-Open a part by clicking it. To go back, use any of: **Esc**, the **←** button by the breadcrumb, **zooming out** past the level, the browser's **Back**, the mouse back button, **Backspace**, or a double-click on empty canvas. The **?** button shows the map's one-sentence summary, a short glossary of project terms, and the shortcuts. New visitors see it once on their first visit.
+Unfold asks what the map is for when your request doesn't say, and shapes the result to match.
 
 ## Install
 
-Download `unfold.zip` from the [latest release](../../releases/latest), or run `make package`.
+```bash
+npx skills add mahmoud-nasif/Unfold
+```
 
-| Where | How |
+The [skills CLI](https://github.com/vercel-labs/skills) installs into Claude Code, Codex, Cursor, OpenCode, Gemini CLI, GitHub Copilot and other agents that read Agent Skills. You can also install it these ways:
+
+| | |
 |---|---|
-| **claude.ai / Claude Desktop** | Open Settings, find the Skills section and upload `unfold.zip`. Custom skills need a plan with code execution enabled. |
-| **Claude Code** | `cp -r skill/unfold ~/.claude/skills/` for all projects, or into `.claude/skills/` for one project. |
-| **Claude API** | Upload the zip through the Skills API (`/v1/skills`) and reference it in your request's container. |
+| **Claude Code plugin** | `/plugin marketplace add mahmoud-nasif/Unfold`, then `/plugin install unfold@unfold` |
+| **Installer script** | `curl -fsSL https://raw.githubusercontent.com/mahmoud-nasif/Unfold/main/install.sh \| sh` (on Windows: `irm …/install.ps1 \| iex`) |
+| **claude.ai and Claude Desktop** | Upload [`unfold.zip`](https://github.com/mahmoud-nasif/Unfold/releases/latest/download/unfold.zip) under **Customize → Skills** |
 
-Then just ask:
+[docs/install.md](docs/install.md) has every agent and the folder each one reads, plus project-level installs and uninstalling.
 
-> Map this repo for our onboarding session. The worker is the tricky bit.
+## Quick start
 
-> How does our ROS 2 pick-and-place stack work? Show the data from the camera topic to the arm commands.
+Open a repository in your agent and ask:
 
-> Walk me through this project like I'm going to maintain it.
+> Map this repo. I'm new here and need to understand it.
 
-## The data
+The agent scans the repository, reads what matters and writes `page.html`. Open it in any browser; it works offline and has no dependencies. Then:
 
-A page is the engine plus one JSON document; the full schema is in [`skill/unfold/references/schema.md`](skill/unfold/references/schema.md). The scripts use only the Python 3.8+ standard library and work without Claude:
+- **Click** a part to open it, and **Esc** to go back.
+- **Hover** a part to trace what flows into and out of it.
+- Press **T** for the guided tour, **/** to search, and **E** to edit.
+
+## Features
+
+### A diagram type for each kind of code
+
+| | |
+|---|---|
+| ![Architecture overview](docs/images/overview.png) **Architecture.** Parts, stores and external systems, and how data moves between them. Every map starts here. | ![Process flowchart](docs/images/process.png) **Process.** What one part does, step by step: steps, decisions, loops. |
+| ![Sequence diagram](docs/images/sequence.png) **Sequence.** Who calls whom, in time order: a request lifecycle, a handshake, an action. | ![State machine](docs/images/state.png) **State machine.** Modes and the events that move between them. |
+| ![Class diagram](docs/images/class.png) **Class diagram.** Attributes, methods, inheritance, interfaces, composition and aggregation in UML notation. | ![C4 context](docs/images/c4.png) **C4.** People, systems and containers, each labelled with its technology. |
+| ![Deployment](docs/images/deployment.png) **Deployment.** Hosts, clusters and containers, grouped by environment. | ![Behaviour tree](docs/images/behaviour.png) **Behaviour tree.** Sequences, selectors, decorators, actions and conditions, children in execution order. |
+
+There are also **data models** (entities, keys and cardinality), **dependency graphs**, **trees and mind maps**, and **timelines**. You can see all of them in the [gallery](https://mahmoud-nasif.github.io/Unfold/types/).
+
+### Grounded in the source
+
+- **Every box cites its code** as `path/file.py:symbol` or a line range. If the map was built from a Git repository, each reference links to those exact lines at the mapped commit.
+- **It says how sure it is.** Each part is marked *read* (seen in the code), *peeked* (checked in an excerpt) or *inferred*. Inferred parts are flagged on the canvas.
+- **It notices when the code moves.** `unfold.py drift` reports every reference whose file, symbol or line no longer exists, and where a moved symbol went. Run it in CI with the bundled GitHub Action, and a pull request that breaks the map gets a comment.
+- **Re-map without losing edits.** After the code changes, the skill re-scans only what changed and merges the result into your edited map. `unfold.py diff` shows what moved between two versions.
+
+### Guided tours, presentation and search
+
+![A guided tour step spotlighting one part of the map](docs/images/tour.png)
+
+- **Tours** lead from inputs to outputs across levels, spotlighting one part per step. The skill writes one for learning and demo maps and can end it with a question the reader answers by clicking a part. Maps without a written tour get a generated one.
+- **Presentation mode** (**P**) plays a tour full screen with the controls hidden. **N** opens speaker notes in a second window.
+- **Search** (**/**) finds parts by name, by a word in their notes, or by a file path, then opens the level that holds them.
+
+### A real editor
+
+![Editing a map: add shapes, link them, change their style, nest and tidy](docs/images/edit.gif)
+
+- A palette of 19 shapes, including classes, people and servers. Drag a shape onto the canvas, or drop image and video files onto it.
+- **Auto-layout and routing.** Long edges get their own lanes, and edges route around the boxes in their way. Each level or edge can use curved, elbow or straight paths.
+- **Bend points.** Select a link and drag its handle to reroute it by hand.
+- **Linking.** Drag from a node's handle onto another node, or near it, to connect them. You can also press **Link** and click the target.
+- **Media in any part.** Attach screenshots, short videos or YouTube and Vimeo embeds, and readers page through them in a viewer.
+- **Structure.** Nest a selection into a module with its edges rewired, or expand it again. Group related parts, and change any level's diagram type.
+- **Edits are kept** in the browser across reloads. A page published as a claude.ai artifact can save into itself.
+
+### Export and import
+
+| Export | For |
+|---|---|
+| **PNG, SVG** | The current level, for slides and documents |
+| **README embed** | An SVG and a Markdown snippet to paste into your README |
+| **PDF** | Every level on its own page |
+| **Mermaid** | A Markdown file with one Mermaid block per level |
+| **draw.io** | One page per level, linked the same way as the map |
+| **Excalidraw** | The current level, with arrows bound to their shapes |
+
+Import works the other way: paste a Mermaid flowchart, sequence, state, class or ER diagram into any level and keep editing it in Unfold.
+
+## How it works
+
+Big repositories don't fit in an agent's context, and reading files whole wastes it. Unfold reads in stages, each more expensive than the last, and stops once every box it plans to draw is backed by code:
+
+| Stage | Tool | What the agent gets |
+|---|---|---|
+| **Map** | `scan_repo.py` | Languages, layout, manifests and entry points, plus the inputs and outputs with file and line. Inputs and outputs include HTTP routes, message queues and topics, gRPC services, CLI arguments, environment variables, files, databases and hardware interfaces. The map ends with a *read these first* list. |
+| **Shape** | `scan_repo.py --outline` | Every class and function with its signature and docstring summary, without bodies. |
+| **Evidence** | `peek.py` | Only the lines around the symbols it asks for. |
+| **Depth** | full files | Only the few files that hold the core logic. |
+
+The scan and peek commands print their cost in tokens and keep to a budget. Long lists are cut with a note on how to fetch the rest, repeated findings are collapsed, and generated, vendored, minified and git-ignored files are skipped. Re-scans use a cache.
+
+The scanner recognises common frameworks and infrastructure:
+- web: Spring, NestJS, FastAPI, Flask, Django, Express, ASP.NET
+- messaging and RPC: gRPC, Kafka, RabbitMQ, NATS, Redis
+- deployment: Docker, Compose, Kubernetes, Terraform, GitHub Actions
+- robotics: ROS 2 topics, services and actions with their message types
+- manifests for npm, Python, Cargo, Go, CMake and Make
+
+The agent then writes the map as one JSON document. The validator checks it, and a build step combines it with a self-contained engine into a single HTML page. The schema is documented in [`references/schema.md`](skill/unfold/references/schema.md).
+
+## Command line
+
+The scripts need only Python 3.8+ and its standard library, so they also work without an agent and in CI:
 
 ```bash
-python skill/unfold/scripts/scan_repo.py REPO [--outline PREFIX] [--json]
-python skill/unfold/scripts/peek.py      REPO path/file.py:symbol path/other.ts:40-80
+python skill/unfold/scripts/scan_repo.py REPO [--outline PREFIX] [--section io] [--budget 4000]
+python skill/unfold/scripts/peek.py      REPO src/api.py:handle src/db.py:40-80
 python skill/unfold/scripts/unfold.py    check   diagram.json
-python skill/unfold/scripts/unfold.py    outline diagram.json
-python skill/unfold/scripts/unfold.py    build   diagram.json page.html    # inlines local media
-python skill/unfold/scripts/unfold.py    extract page.html diagram.json    # continue from browser edits
+python skill/unfold/scripts/unfold.py    build   diagram.json page.html --repo .   # pin source links to the commit
+python skill/unfold/scripts/unfold.py    extract page.html diagram.json            # continue from browser edits
+python skill/unfold/scripts/unfold.py    drift   diagram.json --repo .             # exit 1 if the code moved on
+python skill/unfold/scripts/unfold.py    diff    old.json new.json --page diff.html
 ```
 
-Pages from earlier versions still open.
+To check a map on every pull request:
 
-## Develop
-
-```bash
-pip install -r requirements-dev.txt
-python -m playwright install chromium
-
-make test       # unit tests: validator, scanner, outline, peek, build, packaging, docs/engine consistency
-make e2e        # drives the example in headless Chromium: every level type, navigation, media, the editor
-make engine     # rebuild skill/unfold/assets/template.html from engine/
-make examples   # rebuild examples
-make package    # dist/unfold.zip and .skill
-make media      # regenerate README screenshots and GIFs (needs ffmpeg)
+```yaml
+- uses: actions/checkout@v4
+- uses: mahmoud-nasif/Unfold/.github/actions/unfold-drift@main
+  with:
+    diagram: docs/map/diagram.json
+    comment: "true"   # post the report on the pull request (needs pull-requests: write)
 ```
 
-CI runs the tests on every push. A `v*` tag publishes a release with the packaged skill, and the examples deploy to GitHub Pages once Pages is set to "GitHub Actions". Behaviour tests for the skill itself, including a fixture repo to map, are in `skill/unfold/evals/`.
+## FAQ
 
-```
-skill/unfold/                the skill (this folder is what gets packaged)
-  SKILL.md                   the workflow Claude follows
-  assets/template.html       the engine, built from engine/
-  scripts/scan_repo.py       repo map, symbol outline, read-first ranking
-  scripts/peek.py            budgeted reading of code slices
-  scripts/unfold.py          check / build / extract / outline
-  references/                schema, and how to turn code into levels
-  evals/                     behaviour test cases (not packaged)
-engine/                      engine sources: CSS, JS, icons, sample data
-examples/                    diagram.json + built index.html
-tests/                       unit and end-to-end tests
-tools/                       packaging and media capture
-```
+**Does my code leave my machine?** Unfold itself sends nothing anywhere: the scripts run locally and the page works offline. Your agent reads the code the way it would for any other task, so its usual data handling applies.
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) before changing the engine.
+**Which languages does it understand?** The outline covers Python, JavaScript and TypeScript, Go, Rust, C and C++, and Java. The scanner reads manifests and I/O patterns for the frameworks listed above. For anything else, the agent falls back on reading the code directly.
+
+**Can I use it without an agent?** Yes, though the agent is what writes the map. You can write the JSON by hand or import Mermaid, and use the editor and the command-line tools on their own.
+
+**Will a map from an older version still open?** Yes. Pages from earlier versions open and can be edited.
 
 ## Limitations
 
-- The scanner is regex-based. It misses dynamic wiring (dependency injection, topics built from strings) and reports some false positives. The skill confirms with `peek`, but still review what it marks as inferred.
-- Edges connect nodes within one level. A link that crosses levels is shown through the parent's input and output nodes.
-- Edges are curves that don't route around nodes. Tidy, or drag, when a dense level crowds.
-- Published claude.ai pages block remote images and may block video embeds. Local media is inlined at build time, so prefer that. Standalone files have no such limits.
-- Saving into the page needs a host that allows it (a published claude.ai artifact). Elsewhere, use Export.
+- The scanner works on patterns. It can miss dynamic wiring, such as dependency injection or topic names built at runtime, and it can report false positives. The agent confirms findings in the code, but review anything marked *inferred*.
+- Edges connect parts within one level. A link that crosses levels shows through the parent level's inputs and outputs.
+- Routing avoids boxes but not every crossing. On very dense levels, switch to elbow paths, tidy, or bend the busiest links by hand.
+- Published claude.ai pages block remote images and may block video embeds. Local media is embedded at build time, so prefer local files.
+
+## Contributing
+
+Issues and pull requests are welcome. [CONTRIBUTING.md](CONTRIBUTING.md) explains the setup, the test suites (`make test` for unit tests, `make e2e` for browser tests) and how to add a shape, a diagram type or a scanner pattern. Every change comes with a test.
 
 ## License
 

@@ -1,0 +1,165 @@
+{
+ "meta": {
+  "title": "Services with groups"
+ },
+ "root": {
+  "type": "architecture",
+  "nodes": [
+   {
+    "id": "web",
+    "label": "Web app",
+    "role": "input",
+    "shape": "cloud",
+    "group": "edge"
+   },
+   {
+    "id": "gw",
+    "label": "Gateway",
+    "group": "edge"
+   },
+   {
+    "id": "auth",
+    "label": "Auth",
+    "group": "core"
+   },
+   {
+    "id": "users",
+    "label": "Users",
+    "group": "core"
+   },
+   {
+    "id": "orders",
+    "label": "Orders",
+    "group": "core"
+   },
+   {
+    "id": "pay",
+    "label": "Payments",
+    "group": "core"
+   },
+   {
+    "id": "db",
+    "label": "Postgres",
+    "shape": "cylinder",
+    "group": "data"
+   },
+   {
+    "id": "cache",
+    "label": "Redis",
+    "shape": "cylinder",
+    "group": "data"
+   },
+   {
+    "id": "q",
+    "label": "Queue",
+    "shape": "hexagon",
+    "group": "data"
+   },
+   {
+    "id": "worker",
+    "label": "Worker"
+   },
+   {
+    "id": "mail",
+    "label": "Email",
+    "shape": "cloud",
+    "role": "output"
+   },
+   {
+    "id": "psp",
+    "label": "Payment provider",
+    "shape": "cloud",
+    "role": "output"
+   }
+  ],
+  "edges": [
+   {
+    "from": "web",
+    "to": "gw",
+    "label": "HTTPS"
+   },
+   {
+    "from": "gw",
+    "to": "auth",
+    "label": "verify"
+   },
+   {
+    "from": "gw",
+    "to": "users"
+   },
+   {
+    "from": "gw",
+    "to": "orders"
+   },
+   {
+    "from": "orders",
+    "to": "pay"
+   },
+   {
+    "from": "pay",
+    "to": "psp",
+    "label": "charge"
+   },
+   {
+    "from": "psp",
+    "to": "pay",
+    "label": "webhook"
+   },
+   {
+    "from": "users",
+    "to": "db"
+   },
+   {
+    "from": "orders",
+    "to": "db"
+   },
+   {
+    "from": "auth",
+    "to": "cache"
+   },
+   {
+    "from": "users",
+    "to": "cache"
+   },
+   {
+    "from": "orders",
+    "to": "q",
+    "label": "event"
+   },
+   {
+    "from": "q",
+    "to": "worker"
+   },
+   {
+    "from": "worker",
+    "to": "mail"
+   },
+   {
+    "from": "worker",
+    "to": "db"
+   },
+   {
+    "from": "auth",
+    "to": "users",
+    "label": "lookup"
+   }
+  ],
+  "groups": [
+   {
+    "id": "edge",
+    "label": "Edge",
+    "color": "rose"
+   },
+   {
+    "id": "core",
+    "label": "Core services",
+    "color": "blue"
+   },
+   {
+    "id": "data",
+    "label": "Data",
+    "color": "teal"
+   }
+  ]
+ }
+}
