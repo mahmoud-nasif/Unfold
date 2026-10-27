@@ -49,4 +49,8 @@ Create `examples/<name>/diagram.json`, then run `make examples`. Examples must b
 
 ## Releasing
 
-Update `CHANGELOG.md`, bump the version in the engine's banner comment and `VERSION`, `.claude-plugin/plugin.json`, `pyproject.toml` and `src/unfold_map/__init__.py` (a test checks they agree), commit, then `git tag vX.Y.Z && git push --tags`. The release workflow packages and publishes the skill.
+1. Make sure `CHANGELOG.md` has notes under *Unreleased*.
+2. Run `make bump V=X.Y.Z`. It sets the version in `pyproject.toml`, `src/unfold_map/__init__.py`, `.claude-plugin/plugin.json` and the engine, moves the *Unreleased* notes under the new version, and rebuilds the template and examples.
+3. Commit, open a pull request, and merge it.
+
+Merging publishes everything (`.github/workflows/release.yml`): the `vX.Y.Z` tag, the GitHub release with `unfold.zip` and the changelog notes, and `unfold-map` on PyPI. To publish an existing tag to PyPI again, run the workflow by hand with that tag.
