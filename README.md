@@ -4,12 +4,13 @@
 
 **Turn any codebase into an interactive map that explains it.**
 
-[![CI](https://github.com/mahmoud-nasif/Unfold/actions/workflows/ci.yml/badge.svg)](https://github.com/mahmoud-nasif/Unfold/actions/workflows/ci.yml)
+[![CI](https://github.com/mahmoud-nasif/Unfold/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/mahmoud-nasif/Unfold/actions/workflows/ci.yml)
 [![Release](https://img.shields.io/github/v/release/mahmoud-nasif/Unfold)](https://github.com/mahmoud-nasif/Unfold/releases/latest)
-[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
-[![Agent Skill](https://img.shields.io/badge/Agent%20Skill-Claude%20Code%20%C2%B7%20Codex%20%C2%B7%20Cursor%20%C2%B7%20more-555)](docs/install.md)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/mahmoud-nasif/Unfold/blob/main/LICENSE)
+[![PyPI](https://img.shields.io/pypi/v/unfold-map)](https://pypi.org/project/unfold-map/)
+[![Agent Skill](https://img.shields.io/badge/Agent%20Skill-Claude%20Code%20%C2%B7%20Codex%20%C2%B7%20Cursor%20%C2%B7%20more-555)](https://github.com/mahmoud-nasif/Unfold/blob/main/docs/install.md)
 
-[Gallery](https://mahmoud-nasif.github.io/Unfold/) · [Install](#install) · [Features](#features) · [How it works](#how-it-works) · [Changelog](CHANGELOG.md)
+[Gallery](https://mahmoud-nasif.github.io/Unfold/) · [Install](#install) · [Features](#features) · [How it works](#how-it-works) · [Changelog](https://github.com/mahmoud-nasif/Unfold/blob/main/CHANGELOG.md)
 
 </div>
 
@@ -17,7 +18,7 @@ Unfold is an agent skill for Claude Code, Codex, Cursor and other coding agents.
 
 Every box cites the file and symbol it came from. A guided tour walks a newcomer through the map. A built-in editor lets you reshape it for onboarding, a design review or a talk.
 
-![Exploring a map: hover to trace data, open a part, step back out](docs/images/explore.gif)
+![Exploring a map: hover to trace data, open a part, step back out](https://raw.githubusercontent.com/mahmoud-nasif/Unfold/main/docs/images/explore.gif)
 
 ## Why Unfold
 
@@ -60,7 +61,7 @@ The [skills CLI](https://github.com/vercel-labs/skills) installs into Claude Cod
 | **Installer script** | `curl -fsSL https://raw.githubusercontent.com/mahmoud-nasif/Unfold/main/install.sh \| sh` (on Windows: `irm …/install.ps1 \| iex`) |
 | **claude.ai and Claude Desktop** | Upload [`unfold.zip`](https://github.com/mahmoud-nasif/Unfold/releases/latest/download/unfold.zip) under **Customize → Skills** |
 
-[docs/install.md](docs/install.md) has every agent and the folder each one reads, plus project-level installs and uninstalling.
+[docs/install.md](https://github.com/mahmoud-nasif/Unfold/blob/main/docs/install.md) has every agent and the folder each one reads, plus project-level installs and uninstalling.
 
 ## Quick start
 
@@ -80,10 +81,10 @@ The agent scans the repository, reads what matters and writes `page.html`. Open 
 
 | | |
 |---|---|
-| ![Architecture overview](docs/images/overview.png) **Architecture.** Parts, stores and external systems, and how data moves between them. Every map starts here. | ![Process flowchart](docs/images/process.png) **Process.** What one part does, step by step: steps, decisions, loops. |
-| ![Sequence diagram](docs/images/sequence.png) **Sequence.** Who calls whom, in time order: a request lifecycle, a handshake, an action. | ![State machine](docs/images/state.png) **State machine.** Modes and the events that move between them. |
-| ![Class diagram](docs/images/class.png) **Class diagram.** Attributes, methods, inheritance, interfaces, composition and aggregation in UML notation. | ![C4 context](docs/images/c4.png) **C4.** People, systems and containers, each labelled with its technology. |
-| ![Deployment](docs/images/deployment.png) **Deployment.** Hosts, clusters and containers, grouped by environment. | ![Behaviour tree](docs/images/behaviour.png) **Behaviour tree.** Sequences, selectors, decorators, actions and conditions, children in execution order. |
+| ![Architecture overview](https://raw.githubusercontent.com/mahmoud-nasif/Unfold/main/docs/images/overview.png) **Architecture.** Parts, stores and external systems, and how data moves between them. Every map starts here. | ![Process flowchart](https://raw.githubusercontent.com/mahmoud-nasif/Unfold/main/docs/images/process.png) **Process.** What one part does, step by step: steps, decisions, loops. |
+| ![Sequence diagram](https://raw.githubusercontent.com/mahmoud-nasif/Unfold/main/docs/images/sequence.png) **Sequence.** Who calls whom, in time order: a request lifecycle, a handshake, an action. | ![State machine](https://raw.githubusercontent.com/mahmoud-nasif/Unfold/main/docs/images/state.png) **State machine.** Modes and the events that move between them. |
+| ![Class diagram](https://raw.githubusercontent.com/mahmoud-nasif/Unfold/main/docs/images/class.png) **Class diagram.** Attributes, methods, inheritance, interfaces, composition and aggregation in UML notation. | ![C4 context](https://raw.githubusercontent.com/mahmoud-nasif/Unfold/main/docs/images/c4.png) **C4.** People, systems and containers, each labelled with its technology. |
+| ![Deployment](https://raw.githubusercontent.com/mahmoud-nasif/Unfold/main/docs/images/deployment.png) **Deployment.** Hosts, clusters and containers, grouped by environment. | ![Behaviour tree](https://raw.githubusercontent.com/mahmoud-nasif/Unfold/main/docs/images/behaviour.png) **Behaviour tree.** Sequences, selectors, decorators, actions and conditions, children in execution order. |
 
 There are also **data models** (entities, keys and cardinality), **dependency graphs**, **trees and mind maps**, and **timelines**. You can see all of them in the [gallery](https://mahmoud-nasif.github.io/Unfold/types/).
 
@@ -96,7 +97,7 @@ There are also **data models** (entities, keys and cardinality), **dependency gr
 
 ### Guided tours, presentation and search
 
-![A guided tour step spotlighting one part of the map](docs/images/tour.png)
+![A guided tour step spotlighting one part of the map](https://raw.githubusercontent.com/mahmoud-nasif/Unfold/main/docs/images/tour.png)
 
 - **Tours** lead from inputs to outputs across levels, spotlighting one part per step. The skill writes one for learning and demo maps and can end it with a question the reader answers by clicking a part. Maps without a written tour get a generated one.
 - **Presentation mode** (**P**) plays a tour full screen with the controls hidden. **N** opens speaker notes in a second window.
@@ -104,7 +105,7 @@ There are also **data models** (entities, keys and cardinality), **dependency gr
 
 ### A real editor
 
-![Editing a map: add shapes, link them, change their style, nest and tidy](docs/images/edit.gif)
+![Editing a map: add shapes, link them, change their style, nest and tidy](https://raw.githubusercontent.com/mahmoud-nasif/Unfold/main/docs/images/edit.gif)
 
 - A palette of 19 shapes, including classes, people and servers. Drag a shape onto the canvas, or drop image and video files onto it.
 - **Auto-layout and routing.** Long edges get their own lanes, and edges route around the boxes in their way. Each level or edge can use curved, elbow or straight paths.
@@ -147,11 +148,11 @@ The scanner recognises common frameworks and infrastructure:
 - robotics: ROS 2 topics, services and actions with their message types
 - manifests for npm, Python, Cargo, Go, CMake and Make
 
-The agent then writes the map as one JSON document. The validator checks it, and a build step combines it with a self-contained engine into a single HTML page. The schema is documented in [`references/schema.md`](skill/unfold/references/schema.md).
+The agent then writes the map as one JSON document. The validator checks it, and a build step combines it with a self-contained engine into a single HTML page. The schema is documented in [`references/schema.md`](https://github.com/mahmoud-nasif/Unfold/blob/main/skill/unfold/references/schema.md).
 
 ## Command line
 
-The scripts need only Python 3.8+ and its standard library, so they also work without an agent and in CI:
+The scripts need only Python 3.8+ and its standard library, so they also work without an agent and in CI. Install them as a command with `pipx install unfold-map` (then `unfold scan`, `unfold check`, `unfold build`…), or run them from a checkout:
 
 ```bash
 python skill/unfold/scripts/scan_repo.py REPO [--outline PREFIX] [--section io] [--budget 4000]
@@ -192,8 +193,8 @@ To check a map on every pull request:
 
 ## Contributing
 
-Issues and pull requests are welcome. [CONTRIBUTING.md](CONTRIBUTING.md) explains the setup, the test suites (`make test` for unit tests, `make e2e` for browser tests) and how to add a shape, a diagram type or a scanner pattern. Every change comes with a test.
+Issues and pull requests are welcome. [CONTRIBUTING.md](https://github.com/mahmoud-nasif/Unfold/blob/main/CONTRIBUTING.md) explains the setup, the test suites (`make test` for unit tests, `make e2e` for browser tests) and how to add a shape, a diagram type or a scanner pattern. Every change comes with a test.
 
 ## License
 
-[MIT](LICENSE)
+[MIT](https://github.com/mahmoud-nasif/Unfold/blob/main/LICENSE)

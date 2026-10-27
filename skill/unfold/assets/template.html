@@ -408,11 +408,11 @@ body.presenting .tourbar h3{font-size:24px}body.presenting .tourbar p{font-size:
 <div id="app"></div>
 <script type="application/json" id="story-data">{"meta":{"title":"Example system","subtitle":"Click a module to step inside"},"root":{"type":"architecture","caption":"A request comes in, gets handled, and a response goes out.","nodes":[{"id":"req","label":"HTTP request","shape":"parallelogram","role":"input","color":"rose"},{"id":"api","label":"API server","icon":"server","color":"blue","children":{"type":"process","caption":"Each request is validated before it is handled.","nodes":[{"id":"start","label":"Request received","shape":"pill","role":"input"},{"id":"valid","label":"Valid?","shape":"diamond","color":"amber"},{"id":"handle","label":"Handle request"},{"id":"reject","label":"Return 400"},{"id":"done","label":"Send response","shape":"pill","role":"output"}],"edges":[{"from":"start","to":"valid"},{"from":"valid","to":"handle","label":"yes"},{"from":"valid","to":"reject","label":"no"},{"from":"handle","to":"done"},{"from":"reject","to":"done"}]}},{"id":"db","label":"Database","shape":"cylinder","color":"teal"},{"id":"res","label":"HTTP response","shape":"parallelogram","role":"output","color":"rose"}],"edges":[{"from":"req","to":"api"},{"from":"api","to":"db","label":"query","arrow":"both","style":"solid"},{"from":"api","to":"res"}]}}</script>
 <script id="ss-engine">
-/*! unfold engine 0.4.0 | MIT License */
+/*! unfold engine 0.4.1 | MIT License */
 (function(){
 'use strict';
 var NS='http://www.w3.org/2000/svg';
-var VERSION='0.4.0';
+var VERSION='0.4.1';
 var SNAP=10;
 var FONT_LINKS='<link rel="preconnect" href="https://fonts.googleapis.com">\n<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>\n<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700&family=Hanken+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">';
 var reduceMotion=!!(window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches);
@@ -979,32 +979,62 @@ function levelRoutes(l){
       if(best)sd=best.sd;
     }
     ends[i]={a:a,b:b,pts:pts,sd:sd};
-    [[a,sd[0],pts.length?pts[0]:b],[b,sd[1],pts.length?pts[pts.length-1]:a]].forEach(function(t,j){var k=t[0].id+'|'+t[1];(slots[k]=slots[k]||[]).push({i:i,j:j,o:t[2]});});
+    var face=!pts.length&&({l:'r',r:'l',t:'b',b:'t'})[sd[0]]===sd[1];
+    [[a,sd[0],pts.length?pts[0]:b],[b,sd[1],pts.length?pts[pts.length-1]:a]].forEach(function(t,j){var k=t[0].id+'|'+t[1];(slots[k]=slots[k]||[]).push({i:i,j:j,o:t[2],far:face?t[2]:null});});
   });
-  Object.keys(slots).forEach(function(k){
-    var list=slots[k],n=list[0].j?ends[list[0].i].b:ends[list[0].i].a,side=k.slice(k.lastIndexOf('|')+1),hz=side==='l'||side==='r';
-    list.sort(function(p,q){return (hz?p.o.y-q.o.y:p.o.x-q.o.x)||(p.i-q.i);});
-    var sp=spreadOf(n,side,list.length);
-    list.forEach(function(s,r){ends[s.i][s.j?'ob':'oa']=(r-(list.length-1)/2)*sp;});
-  });
-  var used={},order=ends.map(function(x,i){return i;}).filter(function(i){return ends[i];});
+  function place(){
+    Object.keys(slots).forEach(function(k){
+      var list=slots[k],n=list[0].j?ends[list[0].i].b:ends[list[0].i].a,side=k.slice(k.lastIndexOf('|')+1),hz=side==='l'||side==='r';
+      list.sort(function(p,q){return (hz?p.o.y-q.o.y:p.o.x-q.o.x)||(p.i-q.i);});
+      // each end goes where its link wants to leave (straight across when the nodes line up), kept a gap apart
+      var sp=Math.max(spreadOf(n,side,list.length),list.length>1?10:0),c0=hz?n.y:n.x,half=(hz?nh(n):nw(n))/2*(n.shape==='diamond'||n.shape==='circle'?.4:.66);
+      if(['initial','final','triangle'].indexOf(n.shape)>=0)half=0;
+      // facing sides meet halfway, so nodes that overlap get a straight link
+      var want=list.map(function(s){var d=(hz?s.o.y:s.o.x)-c0;return clamp(s.o===s.far?d/2:d,-half,half);});
+      var got=list.length>1&&half?packLine(want,want.map(function(){return 0;}),want.map(function(_,r){return r?sp:0;}),-half,half):want;
+      // fans nest instead of overlapping: the end whose link travels farthest sideways turns first
+      var lat=list.map(function(s,r){return Math.abs((hz?s.o.y:s.o.x)-c0-got[r]);}),rank=lat.map(function(v,r){return lat.filter(function(w,q){return w>v||(w===v&&q<r);}).length;});
+      list.forEach(function(s,r){ends[s.i][s.j?'ob':'oa']=got[r];ends[s.i][s.j?'kb':'ka']=list.length>1?.45+.55*rank[r]/(list.length-1):1;});
+    });
+  }
+  var order=ends.map(function(x,i){return i;}).filter(function(i){return ends[i];});
   order.sort(function(i,j){var p=ends[i],q=ends[j];return (Math.abs(p.a.x-p.b.x)+Math.abs(p.a.y-p.b.y))-(Math.abs(q.a.x-q.b.x)+Math.abs(q.a.y-q.b.y));});
-  order.forEach(function(i){
-    var x=ends[i],e=l.edges[i],pa=portAt(x.a,x.sd[0],x.oa||0),pb=portAt(x.b,x.sd[1],x.ob||0),rt=edgeRoute(e,l);
-    if(x.pts.length)res[i]=throughPoints(pa,pb,x.pts,rt);
-    else if(rt==='straight')res[i]=polyGeom([pa,pb],0);
-    else{
-      var bz=bezier(pa,pb,x.sd);
-      if(rt==='curved'&&clearOf(bz.samples,obs,x.a.id,x.b.id))res[i]=bz;
-      else{var pl=orthRoute(pa,pb,obs,used);res[i]=pl?polyGeom(pl.pts,rt==='curved'?36:10):bz;}
-    }
+  // a link with a clear way gets a curve; one that has to go around things is routed, and routes
+  // sharing a lane are nudged apart, so links never run on top of each other
+  function route(){
+    var used={},routed=[];res=[];
+    order.forEach(function(i){
+      var x=ends[i],e=l.edges[i],pa=portAt(x.a,x.sd[0],x.oa||0),pb=portAt(x.b,x.sd[1],x.ob||0),rt=edgeRoute(e,l);
+      if(x.pts.length)res[i]=throughPoints(pa,pb,x.pts,rt);
+      else if(rt==='straight')res[i]=polyGeom([pa,pb],0);
+      else{
+        var bz=bezier(pa,pb,x.sd,x.ka,x.kb);
+        if(rt==='curved'&&clearOf(bz.samples,obs,x.a.id,x.b.id))res[i]=bz;
+        else{var pl=orthRoute(pa,pb,obs,used);if(pl)routed.push({i:i,pts:pl.pts,R:rt==='curved'?28:10});else res[i]=bz;}
+      }
+    });
+    nudge(routed);
+    routed.forEach(function(r){res[r.i]=polyGeom(simplify(r.pts),r.R);});
+  }
+  place();route();
+  // a routed link may arrive from the other side of where its far node sits: order each side's ends
+  // by where the links really arrive, and route once more if that changed anything
+  var moved=false;
+  Object.keys(slots).forEach(function(k){
+    var list=slots[k],side=k.slice(k.lastIndexOf('|')+1),hz=side==='l'||side==='r',before=list.map(function(s){return s.i+'.'+s.j;}).join();
+    list.forEach(function(s){var g=res[s.i],q=null;if(!g||ends[s.i].pts.length)return;
+      if(g.poly&&g.poly.length>2)q=s.j?g.poly[g.poly.length-2]:g.poly[1];else if(g.samples)q=g.samples[s.j?g.samples.length-7:6];
+      if(q)s.o={x:q.x,y:q.y};});
+    list.sort(function(p,q){return (hz?p.o.y-q.o.y:p.o.x-q.o.x)||(p.i-q.i);});
+    if(list.map(function(s){return s.i+'.'+s.j;}).join()!==before)moved=true;
   });
+  if(moved){place();route();}
   routeMemo={key:key,l:l,res:res};
   return res;
 }
-function bezier(pa,pb,sd){
-  var dist=Math.hypot(pb.x-pa.x,pb.y-pa.y),k=sd[0]===sd[1]?Math.max(70,dist*.3):Math.min(140,dist*.45);
-  var c1={x:pa.x+pa.dx*k,y:pa.y+pa.dy*k},c2={x:pb.x+pb.dx*k,y:pb.y+pb.dy*k},sm=[];
+function bezier(pa,pb,sd,ka,kb){
+  var dist=Math.hypot(pb.x-pa.x,pb.y-pa.y),k=sd[0]===sd[1]?Math.max(70,dist*.3):Math.min(140,dist*.45),k1=k*(ka||1),k2=k*(kb||1);
+  var c1={x:pa.x+pa.dx*k1,y:pa.y+pa.dy*k1},c2={x:pb.x+pb.dx*k2,y:pb.y+pb.dy*k2},sm=[];
   for(var t=0;t<=1.0001;t+=1/24)sm.push(cubicAt(pa,c1,c2,pb,t));
   var m=cubicAt(pa,c1,c2,pb,.5);
   return {d:'M'+pa.x+' '+pa.y+'C'+c1.x+' '+c1.y+' '+c2.x+' '+c2.y+' '+pb.x+' '+pb.y,mx:m.x,my:m.y,samples:sm,mids:[{x:m.x,y:m.y,k:0}]};
@@ -1066,6 +1096,31 @@ function sideCands(a,b,sd){
   var pa=hz?(b.y>=a.y?'b':'t'):(b.x>=a.x?'r':'l'),pb=hz?(a.y>=b.y?'b':'t'):(a.x>=b.x?'r':'l');
   var out=[];[sd,[fa,fb],[pa,fb],[fa,pb],[pa,pb]].forEach(function(c){if(!out.some(function(o){return o[0]===c[0]&&o[1]===c[1];}))out.push(c);});
   return out;
+}
+// Segments of different routes that share a line are spread across it, ordered so they don't cross:
+// a run that comes from (and goes back to) the low side of the bundle sits on the low side.
+// End segments stay put, since they are attached to ports.
+function nudge(routes){
+  ['h','v'].forEach(function(ax){
+    var c=ax==='h'?'y':'x',o=ax==='h'?'x':'y',segs=[];
+    routes.forEach(function(r){
+      for(var k=1;k<r.pts.length-2;k++){
+        var p=r.pts[k],q=r.pts[k+1];if(Math.abs(p[c]-q[c])>.5)continue;
+        var pr=r.pts[k-1],nx=r.pts[k+2];
+        segs.push({r:r,k:k,c:p[c],a:Math.min(p[o],q[o]),b:Math.max(p[o],q[o]),side:(pr[c]-p[c])+(nx[c]-p[c])});
+      }
+    });
+    segs.sort(function(s1,s2){return s1.c-s2.c||s1.a-s2.a;});
+    for(var i=0;i<segs.length;){
+      var j=i+1,end=segs[i].b;
+      while(j<segs.length&&Math.abs(segs[j].c-segs[i].c)<1&&segs[j].a<end-1){end=Math.max(end,segs[j].b);j++;}
+      var bundle=segs.slice(i,j);i=j;
+      if(bundle.length<2||bundle.every(function(s){return s.r===bundle[0].r;}))continue;
+      bundle.sort(function(s1,s2){return s1.side-s2.side;});
+      var sp=Math.min(10,24/(bundle.length-1));
+      bundle.forEach(function(s,n){var d=(n-(bundle.length-1)/2)*sp;s.r.pts[s.k][c]+=d;s.r.pts[s.k+1][c]+=d;});
+    }
+  });
 }
 function simplify(pts){
   var out=[pts[0]];

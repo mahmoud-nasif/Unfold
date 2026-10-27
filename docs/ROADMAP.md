@@ -258,7 +258,7 @@ Additional intents reached through *Other*:
 | Phase | State |
 |---|---|
 | 1 Fix the canvas | Done. Linking, layout, routing, bend points and media, each with browser tests. On the three layout fixtures, edge segments passing through nodes went from 11 / 2 / 6 to 0 / 0 / 0, and edge pairs lying on top of each other from 14 / 4 / 2 to 3 / 0 / 0. Crossings went up (7 / 6 / 10 to 12 / 9 / 14), because routes now detour around boxes instead of cutting through them. Reducing crossings is the next layout task. |
-| 2 One-line install | Done, except publishing: `unfold-map` is not on PyPI yet, and `install.ps1` has only run in CI design, not on Windows. |
+| 2 One-line install | Done. `install.ps1` passes on Windows in CI; `unfold-map` is published to PyPI by the release workflow. |
 | 2b Intent first | Done: SKILL.md step 1, `references/intents.md`, `meta.intent`, engine defaults, eval cases. |
 | 3 Understands | Done: drift check and action, re-map merge, permalinks, confidence, map diff, wider scanner, token budget. Open: incremental layout for nodes added by `merge` (it places them in a column today). |
 | 4 Teaches | Done: tours, presentation, notes, search, quiz. |

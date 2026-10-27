@@ -1,27 +1,81 @@
 name: Release
 
+# A merge to main that changes the version (tools/bump_version.py) publishes it:
+# the tag, the GitHub release with the skill zip and its CHANGELOG notes, and the
+# unfold-map package on PyPI. Running it by hand with a tag publishes that tag to PyPI only.
 on:
   push:
-    tags: ["v*"]
+    branches: [main]
+    paths: [pyproject.toml]
+  workflow_dispatch:
+    inputs:
+      pypi_tag:
+        description: "Publish an existing tag to PyPI (e.g. v0.4.0). Leave empty to release the version on main."
+        required: false
+        default: ""
 
-permissions:
-  contents: write
+concurrency:
+  group: release
+  cancel-in-progress: false
 
 jobs:
-  release:
+  version:
     runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.v.outputs.version }}
+      new: ${{ steps.v.outputs.new }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - id: v
+        run: |
+          v=$(sed -n 's/^version = "\(.*\)"/\1/p' pyproject.toml)
+          echo "version=$v" >> "$GITHUB_OUTPUT"
+          if git rev-parse -q --verify "refs/tags/v$v" >/dev/null; then echo "new=false" >> "$GITHUB_OUTPUT"; else echo "new=true" >> "$GITHUB_OUTPUT"; fi
+          echo "version $v"
+
+  github:
+    name: GitHub release
+    needs: version
+    if: needs.version.outputs.new == 'true' && inputs.pypi_tag == ''
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
       - run: pip install "pytest>=7" "pyyaml>=6"
-      - run: make check && make test
-      - run: make package
-      - name: Publish GitHub release
+      - run: make check && make test && make package
+      - name: Tag and publish the release
         env:
           GH_TOKEN: ${{ github.token }}
+          V: ${{ needs.version.outputs.version }}
         run: |
-          gh release create "$GITHUB_REF_NAME" \
-            dist/unfold.zip dist/unfold.skill \
-            --title "$GITHUB_REF_NAME" --generate-notes
+          python tools/release_notes.py "$V" > notes.md
+          gh release create "v$V" dist/unfold.zip dist/unfold.skill \
+            --target "$GITHUB_SHA" --title "v$V" --notes-file notes.md
+
+  pypi:
+    name: PyPI (unfold-map)
+    needs: [version, github]
+    if: always() && (needs.github.result == 'success' || inputs.pypi_tag != '')
+    runs-on: ubuntu-latest
+    environment:
+      name: pypi
+      url: https://pypi.org/project/unfold-map/
+    permissions:
+      id-token: write  # trusted publishing: no API token is stored anywhere
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.pypi_tag || github.sha }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: python -m pip install build && python -m build --outdir pydist
+      - uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          packages-dir: pydist/

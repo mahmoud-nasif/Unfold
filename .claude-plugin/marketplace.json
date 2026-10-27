@@ -1,6 +1,6 @@
 {
   "name": "unfold",
-  "description": "Unfold: read a codebase and unfold it into an interactive, zoomable map.",
+  "description": "Unfold: turn any codebase into an interactive map that explains it.",
   "owner": {
     "name": "Mahmoud Nasif",
     "url": "https://github.com/mahmoud-nasif"
@@ -9,9 +9,15 @@
     {
       "name": "unfold",
       "source": "./",
-      "description": "Reads a codebase and builds a zoomable, editable diagram page: architecture, process, sequence, state and data levels, each box citing its source.",
+      "description": "Reads a codebase and writes one HTML page that explains it: an architecture overview whose parts open into flowcharts, sequences, state machines, class diagrams and more, every box citing its source, with guided tours and an editor.",
       "category": "documentation",
-      "tags": ["architecture", "diagram", "onboarding", "documentation", "code-understanding"]
+      "tags": [
+        "architecture",
+        "diagram",
+        "onboarding",
+        "documentation",
+        "code-understanding"
+      ]
     }
   ]
 }

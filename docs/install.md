@@ -37,7 +37,7 @@ irm https://raw.githubusercontent.com/mahmoud-nasif/Unfold/main/install.ps1 | ie
 
 `~/.agents/skills` is the shared folder that most agents read, so one copy there serves all of them. With `--project`, the installer uses the project-level folders (`.claude/skills`, `.agents/skills`, `.cline/skills`, `.kiro/skills`) in the current directory instead. Some agents (Cursor, OpenCode, Copilot in VS Code, Goose, Amp, Warp) read both `~/.claude/skills` and `~/.agents/skills`; if you install for Claude Code as well, they may list Unfold twice. Pass `--agent` to pick the folders. Agents not listed here may still read one of these folders; check their docs.
 
-**Without an agent.** The scripts also come as a small Python package, `unfold-map` (not on PyPI yet; build it with `make wheel`), which gives you an `unfold` command for CI: `unfold scan .`, `unfold check diagram.json`, `unfold build diagram.json page.html`.
+**Without an agent.** The scripts also come as a small Python package, `unfold-map` on PyPI (`pipx install unfold-map`), which gives you an `unfold` command for CI: `unfold scan .`, `unfold check diagram.json`, `unfold build diagram.json page.html`.
 
 ## Check that it works
 
