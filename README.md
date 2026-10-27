@@ -107,9 +107,10 @@ There are also **data models** (entities, keys and cardinality), **dependency gr
 
 ![Editing a map: add shapes, link them, change their style, nest and tidy](https://raw.githubusercontent.com/mahmoud-nasif/Unfold/main/docs/images/edit.gif)
 
-- A palette of 19 shapes, including classes, people and servers. Drag a shape onto the canvas, or drop image and video files onto it.
+- A palette of 19 shapes, including classes, people and servers. Drag a shape onto the canvas, or drop image and video files onto it (or paste a screenshot) and it becomes a part you can link.
 - **Auto-layout and routing.** Long edges get their own lanes, and edges route around the boxes in their way. Each level or edge can use curved, elbow or straight paths.
-- **Bend points.** Select a link and drag its handle to reroute it by hand.
+- **Free links.** Select a link and drag its line to bend it anywhere, drag its label to move it (double-click to edit the text), and drag an end dot to another side of the box, or onto another box. **Ends** in the toolbar picks the sides by name.
+- **Tags.** Any number per part: Input and Output, suggested ones (planned, deprecated, external, hardware…) or your own.
 - **Linking.** Drag from a node's handle onto another node, or near it, to connect them. You can also press **Link** and click the target.
 - **Media in any part.** Attach screenshots, short videos or YouTube and Vimeo embeds, and readers page through them in a viewer.
 - **Structure.** Nest a selection into a module with its edges rewired, or expand it again. Group related parts, and change any level's diagram type.
@@ -122,6 +123,8 @@ There are also **data models** (entities, keys and cardinality), **dependency gr
 | **PNG, SVG** | The current level, for slides and documents |
 | **README embed** | An SVG and a Markdown snippet to paste into your README |
 | **PDF** | Every level on its own page |
+| **A level and everything inside it** | While you are inside a level: its own page, data, PDF and Mermaid, rooted there |
+| **Documentation (.md)** | Technical documentation of a level and all its children: diagrams, component tables with source links, data flow |
 | **Mermaid** | A Markdown file with one Mermaid block per level |
 | **draw.io** | One page per level, linked the same way as the map |
 | **Excalidraw** | The current level, with arrows bound to their shapes |
@@ -160,6 +163,8 @@ python skill/unfold/scripts/peek.py      REPO src/api.py:handle src/db.py:40-80
 python skill/unfold/scripts/unfold.py    check   diagram.json
 python skill/unfold/scripts/unfold.py    build   diagram.json page.html --repo .   # pin source links to the commit
 python skill/unfold/scripts/unfold.py    extract page.html diagram.json            # continue from browser edits
+python skill/unfold/scripts/unfold.py    upgrade pages/ --backup                   # rebuild old pages with the current engine, no agent needed
+python skill/unfold/scripts/unfold.py    usage   diagram.json --latest --rates IN,OUT,CW,CR   # record the agent's tokens and cost
 python skill/unfold/scripts/unfold.py    drift   diagram.json --repo .             # exit 1 if the code moved on
 python skill/unfold/scripts/unfold.py    diff    old.json new.json --page diff.html
 ```

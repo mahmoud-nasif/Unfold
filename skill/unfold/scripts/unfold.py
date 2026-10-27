@@ -4,6 +4,9 @@
     python unfold.py check   diagram.json
     python unfold.py build   diagram.json page.html [--template PATH] [--repo PATH]
     python unfold.py extract page.html [diagram.json]
+    python unfold.py upgrade PAGE_OR_DIR... [--check] [--backup] [-o OUT] [--template PATH]
+    python unfold.py usage   diagram.json|page.html (--latest | --transcript FILE) [--since TS] [--rates IN,OUT,CW,CR | --cost USD]
+    python unfold.py status  diagram.json|page.html [--json]
     python unfold.py outline diagram.json|page.html
     python unfold.py drift   diagram.json|page.html --repo PATH [--json]
     python unfold.py diff    old.json new.json [--json] [--page OUT.html]
@@ -14,6 +17,11 @@ Warnings never fail; they point at things a reader would trip over.
 `build --repo` pins `meta.repo` (url, commit, root) from git so source links open
 the exact lines that were mapped.
 `extract` pulls the data out of a page someone edited in the browser.
+`status` counts the parts still tagged `planned` against those built, per level (plan mode).
+`upgrade` rebuilds existing pages with the current engine from the data inside them, so
+no agent has to read the code again; `--check` only reports which pages are out of date.
+`usage` stamps `meta.generation` (tokens and cost of the agent session) from a Claude Code
+transcript or from numbers you give it; the page shows it in its info panel.
 `outline` prints the nesting as an indented tree, for a quick structural review.
 `drift` checks every node `source` against the code and exits 1 if any file,
 symbol or line no longer matches (a symbol that moved is named with its new file).
@@ -61,8 +69,11 @@ ROLES = frozenset({"input", "output"})
 EDGE_STYLES = frozenset({"flow", "solid", "dashed"})
 ARROWS = frozenset({"end", "both", "none"})
 ROUTES = frozenset({"curved", "orthogonal", "straight"})
+SIDES = frozenset({"t", "r", "b", "l"})
+GEN_NUMBERS = ("input_tokens", "output_tokens", "cache_read_tokens", "cache_write_tokens", "cost", "duration_s")
+GEN_STRINGS = ("agent", "model", "currency", "generated_at", "note")
 TEXT_SIZES = frozenset({"s", "m", "l"})
-INTENTS = frozenset({"learn", "demonstrate", "explain", "review", "document", "debug", "refactor", "audit", "other"})
+INTENTS = frozenset({"learn", "demonstrate", "explain", "review", "document", "debug", "refactor", "audit", "plan", "other"})
 HEX_RE = re.compile(r"^#[0-9a-fA-F]{3,8}$")
 CONFIDENCE = frozenset({"read", "peeked", "inferred"})
 DIFF_MARKS = frozenset({"added", "removed", "changed"})
@@ -154,6 +165,8 @@ def _check_node(n, loc, rep, group_ids):
     for f in ("note", "tag"):
         if f in n and not isinstance(n[f], str):
             rep.error(f"{loc}: '{f}' must be a string")
+    if "tags" in n and not _str_list(n["tags"]):
+        rep.error(f"{loc}: 'tags' must be a list of short strings")
     if "fields" in n and not _str_list(n["fields"]):
         rep.error(f"{loc}: 'fields' must be a list of strings like 'id: int PK'")
     media = n.get("media")
@@ -260,6 +273,12 @@ def _check_level(level, where, rep):
             rep.error(f"{loc}: 'rel' must be one of {', '.join(sorted(RELATIONS))}")
         if e.get("route") is not None and e["route"] not in ROUTES:
             rep.error(f"{loc}: 'route' must be one of {', '.join(sorted(ROUTES))}")
+        for side in ("fromSide", "toSide"):
+            if e.get(side) is not None and e[side] not in SIDES:
+                rep.error(f"{loc}: '{side}' must be one of t, r, b, l")
+        lt = e.get("labelT")
+        if lt is not None and not (_num(lt) and 0 <= lt <= 1):
+            rep.error(f"{loc}: 'labelT' must be a number from 0 to 1 (where the label sits along the link)")
         pts = e.get("points")
         if pts is not None and not (isinstance(pts, list) and all(isinstance(p, list) and len(p) == 2 and all(_num(v) for v in p) for p in pts)):
             rep.error(f"{loc}: 'points' must be a list of [x, y] bend points")
@@ -286,6 +305,20 @@ def _check_level(level, where, rep):
             rep.warn(f"{where}: a process level drawn mostly with component boxes; use rect, pill and diamond steps")
 
 
+def _check_generation(g, rep):
+    if g is None:
+        return
+    if not isinstance(g, dict):
+        rep.error("'meta.generation' must be an object")
+        return
+    for k in GEN_NUMBERS:
+        if k in g and not (_num(g[k]) and g[k] >= 0):
+            rep.error(f"meta.generation.{k} must be a number, zero or more")
+    for k in GEN_STRINGS:
+        if k in g and not isinstance(g[k], str):
+            rep.error(f"meta.generation.{k} must be a string")
+
+
 def validate(data):
     rep = Report()
     if not isinstance(data, dict):
@@ -309,6 +342,7 @@ def validate(data):
         if "audience" in meta and not isinstance(meta["audience"], str):
             rep.error("'meta.audience' must be a string")
         _check_repo(meta.get("repo"), rep)
+        _check_generation(meta.get("generation"), rep)
         if "tours" in meta and isinstance(data.get("root"), dict):
             _check_tours(meta["tours"], data["root"], rep)
     if "story" in data:
@@ -1019,6 +1053,41 @@ def cmd_outline(a):
     return 0
 
 
+def planning_status(data):
+    """Count nodes tagged `planned` against the rest, per level. Open questions are listed separately."""
+    rows, planned, built, questions = [], 0, 0, []
+    for lvl_path, level in levels(data).items():
+        p = b = 0
+        for n in level.get("nodes", []):
+            if not isinstance(n, dict) or n.get("shape") in ("text", "initial", "final"):
+                continue
+            tags = [str(t).lower() for t in (n.get("tags") or [])] + ([str(n["tag"]).lower()] if n.get("tag") else [])
+            if "open question" in tags:
+                questions.append({"level": lvl_path or "root", "node": n.get("id"), "label": n.get("label")})
+            elif "planned" in tags:
+                p += 1
+            else:
+                b += 1
+        planned, built = planned + p, built + b
+        if p:
+            rows.append({"level": lvl_path or "root", "planned": p, "built": b})
+    return {"planned": planned, "built": built, "levels": rows, "questions": questions}
+
+
+def cmd_status(a):
+    st = planning_status(_load(a.source))
+    if a.json:
+        print(json.dumps(st, indent=1, ensure_ascii=False))
+        return 0
+    total = st["planned"] + st["built"]
+    print(f"{st['built']} of {total} parts built, {st['planned']} still planned" + (f", {len(st['questions'])} open question(s)" if st["questions"] else ""))
+    for r in st["levels"]:
+        print(f"  {r['level']}: {r['planned']} planned, {r['built']} built")
+    for q in st["questions"]:
+        print(f"  ? {q['level']}: {q['label']}")
+    return 0
+
+
 def cmd_drift(a):
     res = drift(_load(a.diagram), a.repo)
     if a.json:
@@ -1069,6 +1138,189 @@ def cmd_merge(a):
     return 0 if rep.ok else 1
 
 
+def _ts(v):
+    from datetime import datetime, timezone
+    try:
+        d = datetime.fromisoformat(str(v).replace("Z", "+00:00"))
+    except ValueError:
+        return None
+    return d if d.tzinfo else d.replace(tzinfo=timezone.utc)
+
+
+def transcript_usage(path, since=None, until=None):
+    """Sum the token usage of a Claude Code transcript (JSONL). Each API message is counted once."""
+    seen = {}
+    for line in Path(path).read_text(encoding="utf-8", errors="replace").splitlines():
+        try:
+            d = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+        m = d.get("message") if isinstance(d, dict) else None
+        u = m.get("usage") if isinstance(m, dict) else None
+        if not isinstance(u, dict) or m.get("model") in (None, "<synthetic>"):
+            continue
+        at = _ts(d.get("timestamp"))
+        if at and ((since and at < since) or (until and at > until)):
+            continue
+        seen[m.get("id") or d.get("uuid") or len(seen)] = (u, m.get("model"))
+    tot = {"input_tokens": 0, "output_tokens": 0, "cache_read_tokens": 0, "cache_write_tokens": 0}
+    models = Counter()
+    for u, model in seen.values():
+        tot["input_tokens"] += int(u.get("input_tokens") or 0)
+        tot["output_tokens"] += int(u.get("output_tokens") or 0)
+        tot["cache_read_tokens"] += int(u.get("cache_read_input_tokens") or 0)
+        tot["cache_write_tokens"] += int(u.get("cache_creation_input_tokens") or 0)
+        models[model] += 1
+    tot["model"] = ", ".join(m for m, _ in models.most_common(3))
+    tot["messages"] = len(seen)
+    return tot
+
+
+def latest_transcript(cwd=None):
+    d = Path.home() / ".claude" / "projects" / re.sub(r"[^A-Za-z0-9]", "-", str(Path(cwd or Path.cwd()).resolve()))
+    files = sorted(d.glob("*.jsonl"), key=lambda f: f.stat().st_mtime) if d.is_dir() else []
+    return files[-1] if files else None
+
+
+def cmd_usage(a):
+    page = a.target.endswith((".html", ".htm"))
+    text = Path(a.target).read_text(encoding="utf-8")
+    data = extract(text) if page else _load(a.target)
+    gen = {}
+    if a.latest or a.transcript:
+        src = Path(a.transcript) if a.transcript else latest_transcript()
+        if not src or not src.is_file():
+            print("error: no Claude Code transcript found; pass --transcript FILE or the numbers with --input-tokens etc.", file=sys.stderr)
+            return 1
+        since, until = (_ts(a.since) if a.since else None), (_ts(a.until) if a.until else None)
+        if (a.since and not since) or (a.until and not until):
+            print("error: --since and --until take an ISO time such as 2026-10-27T09:30:00Z", file=sys.stderr)
+            return 1
+        u = transcript_usage(src, since, until)
+        if not u["messages"]:
+            print(f"error: no usage found in {src}" + (" for that time window" if since or until else ""), file=sys.stderr)
+            return 1
+        gen.update({k: u[k] for k in ("input_tokens", "output_tokens", "cache_read_tokens", "cache_write_tokens")})
+        if u["model"]:
+            gen["model"] = u["model"]
+        gen["note"] = f"Summed from {u['messages']} model calls in {src.name}" + (f" since {a.since}" if a.since else "") + "."
+    for flag, key in (("input_tokens", "input_tokens"), ("output_tokens", "output_tokens"),
+                      ("cache_read_tokens", "cache_read_tokens"), ("cache_write_tokens", "cache_write_tokens"),
+                      ("duration", "duration_s"), ("agent", "agent"), ("model", "model")):
+        if getattr(a, flag) is not None:
+            gen[key] = getattr(a, flag)
+    if a.note:
+        gen["note"] = a.note
+    if not any(k in gen for k in ("input_tokens", "output_tokens")):
+        print("error: give --latest, --transcript FILE, or --input-tokens/--output-tokens", file=sys.stderr)
+        return 1
+    gen.setdefault("agent", "Claude Code")
+    if a.cost is not None:
+        gen["cost"] = a.cost
+    elif a.rates:
+        try:
+            r = [float(x) for x in a.rates.split(",")]
+            r += [0.0] * (4 - len(r))
+        except ValueError:
+            print("error: --rates takes USD per million tokens: INPUT,OUTPUT[,CACHE_WRITE,CACHE_READ]", file=sys.stderr)
+            return 1
+        gen["cost"] = round(sum(v * x for v, x in zip(
+            (gen.get("input_tokens", 0), gen.get("output_tokens", 0), gen.get("cache_write_tokens", 0), gen.get("cache_read_tokens", 0)), r)) / 1e6, 4)
+    if "cost" in gen:
+        gen["currency"] = a.currency
+    from datetime import datetime, timezone
+    gen["generated_at"] = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    data.setdefault("meta", {})["generation"] = gen
+    rep = validate(data)
+    _print_report(rep)
+    if not rep.ok:
+        return 1
+    if page:
+        Path(a.target).write_text(embed(data, text), encoding="utf-8")
+    else:
+        Path(a.target).write_text(json.dumps(data, ensure_ascii=False, indent=1) + "\n", encoding="utf-8")
+    tot = sum(gen.get(k, 0) for k in ("input_tokens", "output_tokens", "cache_read_tokens", "cache_write_tokens"))
+    print(f"stamped {a.target}: {tot:,} tokens" + (f", {gen['currency']} {gen['cost']}" if "cost" in gen else ", no cost (pass --cost or --rates)"))
+    return 0
+
+
+ENGINE_RE = re.compile(r'<style id="ss-css">(.*?)</style>.*?<script id="ss-engine">(.*?)</script>', re.S)
+
+
+def migrate(data):
+    """Bring older data to the current schema. Returns how many nodes changed: `tag` becomes `tags`."""
+    n = 0
+    for _, node in iter_nodes(data.get("root") or {}):
+        if isinstance(node.get("tag"), str):
+            tag = node.pop("tag")
+            if tag.strip():
+                node["tags"] = [tag.strip()] + [x for x in node.get("tags", []) if x != tag.strip()]
+            n += 1
+    return n
+
+
+def _is_stale(page_text, template_text):
+    a, b = ENGINE_RE.search(page_text), ENGINE_RE.search(template_text)
+    return not (a and b and a.groups() == b.groups())
+
+
+def _pages(paths):
+    out = []
+    for p in map(Path, paths):
+        if p.is_dir():
+            out += sorted(f for f in p.rglob("*.html") if ".git" not in f.parts and "node_modules" not in f.parts)
+        else:
+            out.append(p)
+    return out
+
+
+def cmd_upgrade(a):
+    tpl = Path(a.template).read_text(encoding="utf-8")
+    pages = _pages(a.pages)
+    if a.output and len(pages) != 1:
+        print("error: -o works with exactly one page", file=sys.stderr)
+        return 1
+    stale = failed = done = 0
+    for f in pages:
+        text = f.read_text(encoding="utf-8", errors="replace")
+        if not DATA_RE.search(text):
+            if not f.is_dir() and len(pages) == 1:
+                print(f"error: {f} is not an unfold page", file=sys.stderr)
+                return 1
+            continue
+        old = _is_stale(text, tpl)
+        if a.check:
+            print(f"{'out of date' if old else 'current':12} {f}")
+            stale += old
+            continue
+        if not old and not a.output:
+            print(f"current      {f}")
+            continue
+        try:
+            data = extract(text)
+        except ValueError as e:
+            print(f"error: {f}: {e}", file=sys.stderr)
+            failed += 1
+            continue
+        migrate(data)
+        rep = validate(data)
+        if not rep.ok:
+            print(f"skipped      {f}: the data does not pass check with this version", file=sys.stderr)
+            _print_report(rep)
+            failed += 1
+            continue
+        out = Path(a.output) if a.output else f
+        if a.backup and out == f:
+            f.with_suffix(f.suffix + ".bak").write_text(text, encoding="utf-8")
+        out.write_text(embed(data, tpl), encoding="utf-8")
+        print(f"upgraded     {out}")
+        done += 1
+    if a.check:
+        print(f"{stale} of {len(pages)} file(s) out of date" if stale else "all pages are current")
+        return 1 if stale else 0
+    return 1 if failed else 0
+
+
 def main(argv=None):
     ap = argparse.ArgumentParser(prog="unfold.py", description=__doc__.split("\n\n")[0])
     sub = ap.add_subparsers(dest="cmd", required=True)
@@ -1081,6 +1333,36 @@ def main(argv=None):
     b.add_argument("--template", default=str(DEFAULT_TEMPLATE))
     b.add_argument("--repo", metavar="PATH", help="fill missing meta.repo url/commit/root from this git work tree")
     b.set_defaults(fn=cmd_build)
+    g = sub.add_parser("upgrade", help="rebuild existing pages with the current engine, keeping their data")
+    g.add_argument("pages", nargs="+", metavar="PAGE_OR_DIR", help="pages, or folders searched for pages")
+    g.add_argument("--check", action="store_true", help="only list pages whose engine is out of date (exit 1 if any)")
+    g.add_argument("--backup", action="store_true", help="keep each replaced page as PAGE.html.bak")
+    g.add_argument("-o", "--output", help="write the one upgraded page here instead of in place")
+    g.add_argument("--template", default=str(DEFAULT_TEMPLATE))
+
+    t = sub.add_parser("status", help="how many planned parts are built (plan mode)")
+    t.add_argument("source")
+    t.add_argument("--json", action="store_true")
+    t.set_defaults(fn=cmd_status)
+
+    u = sub.add_parser("usage", help="record what the agent session spent on this map (meta.generation)")
+    u.add_argument("target", help="diagram JSON or built page; updated in place")
+    u.add_argument("--latest", action="store_true", help="read the newest Claude Code transcript of the current folder")
+    u.add_argument("--transcript", metavar="FILE", help="a Claude Code transcript (.jsonl)")
+    u.add_argument("--since", metavar="TS", help="count only calls at or after this ISO time (when the mapping began)")
+    u.add_argument("--until", metavar="TS")
+    u.add_argument("--rates", metavar="IN,OUT,CW,CR", help="USD per million tokens: input, output, cache write, cache read")
+    u.add_argument("--cost", type=float, help="the cost, if you already know it")
+    u.add_argument("--currency", default="USD")
+    for k in ("input_tokens", "output_tokens", "cache_read_tokens", "cache_write_tokens"):
+        u.add_argument("--" + k.replace("_", "-"), dest=k, type=int)
+    u.add_argument("--duration", type=float, help="seconds the work took")
+    u.add_argument("--agent")
+    u.add_argument("--model")
+    u.add_argument("--note")
+    u.set_defaults(fn=cmd_usage)
+    g.set_defaults(fn=cmd_upgrade)
+
     x = sub.add_parser("extract", help="pull diagram data out of a built page")
     x.add_argument("page")
     x.add_argument("output", nargs="?")
