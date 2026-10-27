@@ -4,4 +4,4 @@ The scripts themselves live in the skill folder (``skill/unfold/scripts``) and s
 on their own. The wheel ships that folder as ``unfold_map/skill``; ``unfold_map.cli`` finds it
 and runs the script for each subcommand.
 """
-__version__ = "0.4.0"
+__version__ = "0.4.1"

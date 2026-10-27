@@ -1,8 +1,8 @@
 {
   "name": "unfold",
   "displayName": "Unfold",
-  "version": "0.4.0",
-  "description": "Reads a codebase and builds a zoomable, editable diagram page: architecture, process, sequence, state and data levels, each box citing its source.",
+  "version": "0.4.1",
+  "description": "Reads a codebase and writes one HTML page that explains it: an architecture overview whose parts open into flowcharts, sequences, state machines, class diagrams and more, every box citing its source, with guided tours and an editor.",
   "author": {
     "name": "Mahmoud Nasif",
     "url": "https://github.com/mahmoud-nasif"
@@ -10,6 +10,14 @@
   "homepage": "https://github.com/mahmoud-nasif/Unfold",
   "repository": "https://github.com/mahmoud-nasif/Unfold",
   "license": "MIT",
-  "keywords": ["architecture", "diagram", "onboarding", "documentation", "skill"],
-  "skills": ["./skill/unfold"]
+  "keywords": [
+    "architecture",
+    "diagram",
+    "onboarding",
+    "documentation",
+    "skill"
+  ],
+  "skills": [
+    "./skill/unfold"
+  ]
 }

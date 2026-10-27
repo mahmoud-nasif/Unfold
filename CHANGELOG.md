@@ -4,6 +4,19 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 
 ## [Unreleased]
 
+## [0.4.1] - 2026-10-27
+
+### Fixed
+- Links no longer run on top of each other. Ends sharing a node side are placed where each link wants to go (straight across when the nodes line up), fans of curves nest instead of overlapping, routed links that share a lane are nudged apart, and each side's ends are re-ordered by where routes really arrive.
+
+### Added
+- Automated releases: merging a version bump (`make bump V=X.Y.Z`) to `main` tags it, publishes the GitHub release with its changelog notes, and publishes `unfold-map` to PyPI through trusted publishing.
+- `unfold-map` on PyPI: `pipx install unfold-map` gives the `unfold` command.
+
+### Changed
+- CI: browser tests run in Playwright's container image and in parallel (about 14 minutes down to about 2); runs on a pull request cancel the run they replace; documentation-only changes skip CI.
+- README links and images are absolute, so the PyPI page renders them.
+
 ## [0.4.0] - 2026-10-26
 
 Unfold now teaches as well as maps: guided tours, presentation mode and search. Links route around boxes and can be bent by hand. Seven more diagram types, exports to the tools people already use, a token budget for reading code, a drift check, and one-line installs for many agents.

@@ -265,3 +265,38 @@ def test_media_popover_uploads_and_removes(mapped, tmp_path):
     assert mapped.locator(".media-pop .m-list li").count() == 1
     mapped.click('.media-pop [data-act="media-del"]')
     assert "media" not in next(n for n in saved(mapped)["root"]["nodes"] if n["id"] == "peek")
+
+
+EDGES_ON_TOP_OF_EACH_OTHER = """() => {
+  const edges = [...document.querySelectorAll('#ss-scene .edge')].map(g => {
+    const p = g.querySelector('.line'), L = p.getTotalLength(), pts = [];
+    for (let k = 0; k <= 60; k++) { const q = p.getPointAtLength(L * k / 60); pts.push([q.x, q.y]); }
+    return pts;
+  });
+  let pairs = 0;
+  for (let i = 0; i < edges.length; i++) for (let j = i + 1; j < edges.length; j++) {
+    let close = 0;
+    for (let a = 4; a < 57; a++) if (edges[j].some(q => Math.hypot(q[0] - edges[i][a][0], q[1] - edges[i][a][1]) < 3)) close++;
+    if (close >= 5) pairs++;
+  }
+  return pairs;
+}"""
+
+
+@pytest.mark.parametrize("fixture,most", [("pipeline", 0), ("services", 0), ("fan-in", 2)])
+def test_links_do_not_run_on_top_of_each_other(browser, tmp_path, fixture, most):
+    """Given links that share a node side, when routed, then they fan out instead of overlapping."""
+    d = json.loads((FIXTURES / f"{fixture}.json").read_text())
+    page = tmp_path / "p.html"
+    page.write_text(story.embed(d, TEMPLATE_TEXT), encoding="utf-8")
+    c, pg = open_page(browser, page.as_uri())
+    assert pg.evaluate(EDGES_ON_TOP_OF_EACH_OTHER) <= most
+    c.close()
+
+
+def test_a_decision_fanning_out_to_five_branches_stays_apart(browser):
+    c, pg = open_page(browser)
+    pg.click('.node[data-id="claude"] .body')
+    pg.wait_for_timeout(1700)
+    assert pg.evaluate(EDGES_ON_TOP_OF_EACH_OTHER) == 0
+    c.close()
