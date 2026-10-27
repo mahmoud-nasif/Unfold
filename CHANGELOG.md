@@ -4,6 +4,25 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 
 ## [Unreleased]
 
+### Added
+- Plan mode (`meta.intent: plan`): design a system in conversation when there is no code to scan, draw it as a map of `planned` parts (dashed, counted in the level bar) with `open question` nodes, then build it part by part while the map follows. `unfold.py status` reports how many parts are built. Procedure: `references/plan-mode.md`.
+- Tags: any number per part, replacing the In and Out buttons. Input and Output are tags (still stored as `role`); `planned`, `deprecated`, `external`, `hardware` and others are suggested, and any custom tag can be typed. `tags` replaces the single `tag` (old pages are converted on load).
+- Free links: drag a link's line to pull a bend out of it anywhere, slide its label along the line (`labelT`) and edit its text, and move either end to another side (`fromSide`, `toSide`) with the end dots or the **Ends** menu; dropping an end dot on another box reconnects it.
+- Export a level and everything inside it: page, data, PDF and Mermaid rooted at the level you are in.
+- Documentation export (`.md`): diagrams, component tables with source links, inputs and outputs, data flow and glossary for a level and all its children.
+- Info panel (top right): intent, repository commit and what the agent session spent (`meta.generation`). `unfold.py usage` fills it from a Claude Code transcript or from numbers you give it.
+- `unfold.py upgrade`: rebuild existing pages with the current engine from the data inside them, with `--check` and `--backup`. Guide: `docs/upgrade.md`.
+- Pictures dropped on the canvas, pasted from the clipboard, or dragged in from a web page become image nodes that take the picture's proportions.
+
+### Fixed
+- Link labels stay on their link (`labelT`), and the Export dialog no longer shows stray solid buttons (white in dark mode).
+- `upgrade` converts the old single `tag` into `tags` in the file.
+
+### Changed
+- Bent links are drawn as a rounded polyline through their bends, so adding several bends no longer overshoots or loops.
+- Tours and presentations move more slowly, jump between distant levels with a dissolve instead of a chain of quick zooms, and a step asked for during a transition now waits for it instead of leaving the view on the wrong level.
+- Bends move freely (no grid snapping).
+
 ## [0.4.1] - 2026-10-27
 
 ### Fixed

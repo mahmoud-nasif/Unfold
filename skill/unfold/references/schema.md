@@ -25,13 +25,24 @@ A page renders one JSON document. `scripts/unfold.py check` enforces everything 
 | `meta` | object | yes | `title` (required) is the page heading; `subtitle` is optional, one line. `summary` is one sentence about what the system does, shown in the About card. `glossary` is up to 8 `{"term", "def"}` pairs for project jargon. |
 | `root` | Level  | yes | The overview. |
 
+### Generation
+
+`meta.generation` records what the agent session spent on the map, shown in the page's info panel. Write it with `unfold.py usage`, not by hand: it counts the model calls of a Claude Code transcript (each once) or takes numbers you give it.
+
+| Field | Type | Meaning |
+|---|---|---|
+| `input_tokens`, `output_tokens`, `cache_read_tokens`, `cache_write_tokens` | number | Token counts |
+| `cost`, `currency` | number, string | Cost, only when you passed `--cost` or `--rates` (USD per million tokens); Unfold carries no price list |
+| `duration_s` | number | Seconds the work took, if given |
+| `agent`, `model`, `generated_at`, `note` | string | Who made it, with what, when; a short provenance note |
+
 ### Intent and audience
 
 Two optional `meta` fields record what the map was framed for (SKILL.md step 1), so a re-run or an extension of an edited page reuses the framing instead of asking again.
 
 | Field | Type | Meaning |
 |---|---|---|
-| `meta.intent` | string | One of `learn`, `demonstrate`, `explain`, `review`, `document`, `debug`, `refactor`, `audit`, `other`. See `references/intents.md`. |
+| `meta.intent` | string | One of `learn`, `demonstrate`, `explain`, `review`, `document`, `debug`, `refactor`, `audit`, `plan`, `other`. See `references/intents.md`. |
 | `meta.audience` | string | Free text, one line: who will read the map, e.g. "new backend developers" or "non-technical stakeholders at the quarterly review". |
 
 The engine uses `meta.intent` for its defaults: `demonstrate` opens the page in presentation mode, and `learn` offers the guided tour. Pages without it behave as before.
@@ -62,7 +73,7 @@ The root is a level, and so is every node's `children`.
 | `icon`     | string   | An icon name, or an emoji or 1 to 3 letters. Drawn above the label when the node is at least 88 units tall (not on diamonds or triangles). |
 | `source`   | string[] | Where it lives in code: `path/to/file.py`, `file.py:Class.method`, `file.py:42`, `file.py:10-30`, `pkg/module`. See [Source references](#source-references). Shown in the node's detail card. |
 | `note`     | string   | 1 to 3 sentences shown when someone clicks the node. |
-| `tag`      | string   | A small badge: `planned`, `deprecated`, `dev only`. |
+| `tags`     | string[] | Small badges, any number: `planned`, `deprecated`, `dev only`, `external`, `hardware`, or your own (24 characters at most). `role` is the Input and Output tag. The older single `tag` string is still read and becomes the first of `tags`. |
 | `group`    | string   | The id of a group in this level. |
 | `text`     | object   | `{"size": "s"/"m"/"l", "bold": true, "italic": true}`. |
 | `fields`   | string[] | Rows of a `table` node: `"id: int PK"`, `"order_id: int FK"`. `PK` and `FK` are shown in bold. On a `class` node, its attributes: `"- items: list[Item]"`. |
@@ -113,6 +124,8 @@ The root is a level, and so is every node's `children`.
 | `arrow` | string | `end` (default), `both` or `none` (default in data, tree, behaviour and timeline levels). |
 | `rel`   | string | A UML relation, drawn with its own line and end: `inherits` and `implements` (child → parent, hollow triangle), `composition` and `aggregation` (owner → part, filled or hollow diamond at the owner), `association`, `dependency` (open arrow). |
 | `route` | string | Overrides the level's `route` for this edge. |
+| `fromSide`, `toSide` | string | Pin an end to a side of its box: `t`, `r`, `b` or `l`. Set by the editor; leave out to let routing choose. |
+| `labelT` | number | Where the label sits along the link, 0 to 1 (default: the middle). Set by sliding the label in the editor; it always stays on the line. |
 | `points` | [x, y][] | Bend points the path passes through, in level coordinates. Set by dragging an edge in the editor; leave it out when writing a diagram, auto-routing does better. Tidy clears them. |
 | `diff`  | string | Set by `unfold.py diff --page`: `added`, `removed` or `changed`. |
 

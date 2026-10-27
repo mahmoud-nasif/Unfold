@@ -163,7 +163,7 @@ def test_toolbar_changes_shape_colour_role_and_text(editor):
     editor.click('.node[data-id="db"]')
     editor.click('[data-act="pop"][data-arg="shape"]'); editor.click('[data-act="set-shape"][data-arg="hexagon"]')
     editor.click('[data-act="pop"][data-arg="color"]'); editor.click('[data-act="set-color"][data-arg="violet"]')
-    editor.click('[data-act="role"][data-arg="output"]')
+    editor.click('[data-act="pop"][data-arg="tags"]'); editor.click('[data-act="tag-toggle"][data-arg="output"]')
     editor.click('[data-act="bold"]')
     node = editor.locator('.node[data-id="db"]')
     assert "t-hexagon" in node.get_attribute("class") and "role-output" in node.get_attribute("class")

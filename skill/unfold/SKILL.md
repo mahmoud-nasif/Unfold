@@ -24,7 +24,7 @@ At every level, the page answers three questions: *what comes in, what happens t
 **Intent comes first:** what the map is for. It sets the scope, depth, level types, tour, media and glossary; `references/intents.md` has the defaults for each intent.
 
 - **Don't ask when the prompt already says it.** "Walk me through this project" means *learn*. "How does the retry logic work?" means *explain*. "What does this PR change?" means *review*. "I'm presenting this on Friday" means *demonstrate*.
-- **Otherwise ask one question before scanning**, with these options: **Learn the codebase**, **Demonstrate my work**, **Explain a specific detail**, **Review a change**, or **Other** (document or hand over, debug one path, plan a refactor, audit data flow).
+- **Otherwise ask one question before scanning**, with these options: **Learn the codebase**, **Demonstrate my work**, **Explain a specific detail**, **Review a change**, or **Other** (document or hand over, debug one path, plan a refactor, audit data flow). If there is no code to read, or the user wants to design something first and build it afterwards, this is **plan mode**: follow `references/plan-mode.md` instead of steps 2 to 4 (`meta.intent: plan`).
 - **Then ask at most two follow-ups**, picked for that intent in `references/intents.md`. Skip any that the conversation already answers.
 - **Record the answer** as `meta.intent` and `meta.audience`. When extending an existing page, reuse its `meta.intent` instead of asking again.
 
@@ -141,11 +141,16 @@ Then tell the user, in a few lines:
 
 If the user later edited the page, continue from `python scripts/unfold.py extract page.html diagram.json`, not from your old copy.
 
+Record what the work cost, so the page's info panel can show it: note the time when you start (`date -u +%FT%TZ`), and at the end run `python scripts/unfold.py usage diagram.json --latest --since <start>` (add `--rates IN,OUT,CW,CR`, USD per million tokens, only if the user gives you their rates; never guess prices), then rebuild.
+
+To move an existing page to a newer engine, or when asked to change how a page looks or behaves, run `python scripts/unfold.py upgrade page.html`. It reuses the data inside the page: no scan, no regeneration, no tokens (`docs/upgrade.md`).
+
 To re-map after code changes, scan with `--changed-since <meta.repo.commit>`, update a copy of `diagram.generated.json` with the same ids, then `unfold.py merge` it into the edited map so hand edits survive. Steps: `references/reading-code.md` (Re-mapping).
 
 ## Reference
 
 - `references/intents.md`: what each intent changes, and its follow-up questions.
+- `references/plan-mode.md`: no code yet: plan in conversation, draw the plan, build it, and keep the map current.
 - `references/schema.md`: every field, level type, shape and colour.
 - `references/reading-code.md`: turning code into levels, with per-ecosystem patterns.
 - Don't change `assets/template.html` for one diagram. Engine changes belong in the repository, with tests.

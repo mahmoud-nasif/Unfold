@@ -9,6 +9,7 @@ The same repo needs a different map depending on why someone wants it. Settle th
 - [Demonstrate my work](#demonstrate-my-work) (`demonstrate`)
 - [Explain a specific detail](#explain-a-specific-detail) (`explain`)
 - [Review a change](#review-a-change) (`review`)
+- [Plan something new](#plan-something-new) (`plan`)
 - [Other intents](#other-intents): `document`, `debug`, `refactor`, `audit`, `other`
 - [What the page does with the intent](#what-the-page-does-with-the-intent)
 
@@ -83,6 +84,15 @@ For a reviewer who needs to see what a PR or branch touches.
 - **Glossary:** not needed.
 - **Follow-ups:** *Which branch or PR, against which base?* *Anything you're worried about in it?*
 
+## Plan something new
+
+For designing before building: there is no code to scan, or the user wants to think a system through first and then have it built. The conversation is the source, and the map is the plan. The whole procedure is in `references/plan-mode.md`.
+
+- **Scope:** what the user describes, nothing invented.
+- **Depth:** the overview, plus a process or sequence level only for parts where a decision was made.
+- **Tags:** every part is `planned`; unresolved choices are `open question`.
+- **Follow-ups:** *What should it do, and for whom?* *What is already decided or fixed (language, hardware, existing systems)?*
+
 ## Other intents
 
 Reached through **Other**, or inferred from the prompt.
@@ -91,7 +101,7 @@ Reached through **Other**, or inferred from the prompt.
 |---|---|---|---|
 | `document` (document or hand over) | Full coverage, even depth | `source` on every node; full glossary; captions that still make sense in a year | *Who takes it over?* *Where will it live?* |
 | `debug` (trace one path) | One request or data path, end to end | Every hop cited with `file:line`; decisions and error branches drawn | *Which request or symptom?* *Where does it go wrong, if known?* |
-| `refactor` (plan a refactor or migration) | The current state of the area | Coupling hotspots: draw imports and calls between parts, mark the ones that block the change with `tag` | *What's the target state?* *What must not break?* |
+| `refactor` (refactor or migration of existing code) | The current state of the area | Coupling hotspots: draw imports and calls between parts, mark the ones that block the change with `tag` | *What's the target state?* *What must not break?* |
 | `audit` (audit data flow) | Data-flow levels across the system | Trust boundaries as `groups`; external sinks (`cloud` nodes) and stores of personal data marked with `role: "output"` and a `tag` | *Which data: personal, secrets, payments?* *Which boundary matters: network, process, vendor?* |
 | `other` | As the user describes | Note the user's own words in `meta.audience` or the summary | Ask what a good map would let them do |
 

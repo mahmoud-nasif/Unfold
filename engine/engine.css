@@ -163,8 +163,16 @@ button{font:inherit;color:inherit}
 .ftb .tb-txt{appearance:none;border:0;background:transparent;height:32px;padding:0 9px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:6px}
 .ftb .tb-txt:hover{background:var(--hover)}
 .ftb .tb-txt[aria-pressed="true"]{background:var(--ink);color:var(--paper)}
-.ftb .tb-in[aria-pressed="true"]{background:var(--in);color:var(--surface)}
-.ftb .tb-out[aria-pressed="true"]{background:var(--out);color:var(--surface)}
+.ftb .tb-n{font-size:11px;background:var(--hover);border-radius:999px;padding:0 6px}.ftb .tb-txt[aria-pressed="true"] .tb-n{background:transparent}
+.tag-pop .chips{display:flex;flex-wrap:wrap;gap:6px;margin:4px 0 10px}
+.tag-pop .pal-h{font-size:11px;font-weight:700;color:var(--muted);margin:0 0 4px}
+.tag-pop .chip{appearance:none;display:inline-flex;align-items:center;gap:4px;border:1px solid var(--line);background:var(--paper);color:var(--ink);border-radius:999px;font:inherit;font-size:12px;font-weight:600;padding:2px 9px;cursor:pointer}
+.tag-pop button.chip:hover{border-color:var(--focus)}
+.tag-pop .chip.on{background:var(--ink);color:var(--paper);border-color:var(--ink);cursor:default}
+.tag-pop .chip.role-input{background:var(--in);border-color:var(--in);color:var(--surface)}.tag-pop .chip.role-output{background:var(--out);border-color:var(--out);color:var(--surface)}
+.tag-pop .chip.on button{appearance:none;border:0;background:transparent;color:inherit;padding:0;display:grid;cursor:pointer;opacity:.8}
+.tag-pop .m-url{display:flex;gap:6px}.tag-pop .m-url input{flex:1;margin:0;min-width:0}
+.node .tag.more rect{opacity:.6}
 .ftb .tb-danger{color:var(--danger)}
 .swatch{width:16px;height:16px;border-radius:50%;background:var(--nc);box-shadow:inset 0 0 0 1px rgba(0,0,0,.15)}
 .pop{position:absolute;top:calc(100% + 6px);left:0;z-index:13;padding:8px;background:var(--surface);border:1px solid var(--line);border-radius:12px;box-shadow:var(--shadow);white-space:normal}
@@ -392,3 +400,27 @@ body.presenting .tourbar h3{font-size:24px}body.presenting .tourbar p{font-size:
   #ss-print p{font:11pt system-ui,sans-serif;margin:0 0 4mm;color:#444}
   #ss-print svg{width:100%;height:auto;max-height:240mm}
 }
+
+/* edge ends and labels are movable while editing */
+.wph .ep .ep-dot{fill:var(--focus);stroke:var(--surface);stroke-width:1.5}
+.wph .ep{cursor:grab}
+.ghost-end{fill:none;stroke:var(--focus);stroke-width:2.5;pointer-events:none}
+.editing .edge.sel .elabel{cursor:move}
+.ends-pop{display:grid;gap:8px;width:330px}.ends-row{display:grid;grid-template-columns:64px 1fr;gap:8px;align-items:center;font-size:12.5px;font-weight:600}
+
+/* map info panel, top right under the toolbar */
+.infopanel{position:absolute;top:64px;right:16px;z-index:7;width:min(320px,calc(100% - 32px));padding:12px 16px 12px;background:var(--surface);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);font-size:13px}
+.infopanel .in-head{display:flex;align-items:center;justify-content:space-between}.infopanel h3{margin:0;font-size:14px}
+.infopanel h4{margin:12px 0 4px;font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.04em}
+.infopanel dl{display:grid;grid-template-columns:auto 1fr;gap:4px 12px;margin:8px 0}.infopanel dt{color:var(--muted)}.infopanel dd{margin:0;text-align:right;overflow-wrap:anywhere}
+.infopanel .in-tok dd{font-variant-numeric:tabular-nums}.infopanel p{margin:6px 0 0}
+body.presenting .infopanel{display:none}
+
+/* presenting: slower fades between levels */
+body.presenting #ss-scene{transition:opacity .7s ease}
+body.presenting #ss-scene.leaving{transition:opacity .55s ease}
+body.presenting .spotlight .node:not(.spot){transition:opacity .6s}
+
+/* parts that are planned, not built yet */
+.node.planned .body .sh{stroke-dasharray:7 5}
+.keys-inline .planned-sw{background:transparent;border:2px dashed var(--muted)}

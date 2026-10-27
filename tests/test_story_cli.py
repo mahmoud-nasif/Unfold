@@ -368,3 +368,88 @@ def test_build_fails_on_missing_media(tmp_path, d):
     src.write_text(json.dumps(d), encoding="utf-8")
     r = run("build", str(src), str(out))
     assert r.returncode == 1 and "media file not found" in r.stderr
+
+
+# ---------- usage and upgrade (0.5.0) ----------
+
+def _transcript(path, calls):
+    lines = []
+    for i, (mid, ts, u) in enumerate(calls):
+        lines.append(json.dumps({"timestamp": ts, "message": {"id": mid, "model": "m-1", "usage": u}}))
+    path.write_text("\n".join(lines), encoding="utf-8")
+
+
+def test_usage_counts_each_api_message_once_and_prices_it(tmp_path):
+    # Given a transcript where one message is logged twice (one line per content block)
+    u = {"input_tokens": 10, "output_tokens": 20, "cache_read_input_tokens": 1000, "cache_creation_input_tokens": 100}
+    t = tmp_path / "s.jsonl"
+    _transcript(t, [("a", "2026-10-27T09:00:00Z", u), ("a", "2026-10-27T09:00:01Z", u), ("b", "2026-10-27T10:00:00Z", u)])
+    diagram = tmp_path / "d.json"
+    diagram.write_text(json.dumps({"meta": {"title": "T"}, "root": {"nodes": [{"id": "a", "label": "A"}]}}))
+    # When stamping from 09:30 on, with rates per million tokens
+    r = subprocess.run([sys.executable, str(CLI), "usage", str(diagram), "--transcript", str(t), "--since", "2026-10-27T09:30:00Z", "--rates", "3,15,3.75,0.3"],
+                       capture_output=True, text=True)
+    assert r.returncode == 0, r.stderr
+    # Then only the second message counts, and cost follows the rates
+    g = json.loads(diagram.read_text())["meta"]["generation"]
+    assert (g["input_tokens"], g["output_tokens"], g["cache_read_tokens"], g["cache_write_tokens"]) == (10, 20, 1000, 100)
+    assert g["cost"] == round((10 * 3 + 20 * 15 + 100 * 3.75 + 1000 * 0.3) / 1e6, 4)
+    assert story.validate(json.loads(diagram.read_text())).ok
+
+
+def test_usage_without_a_cost_source_records_no_cost(tmp_path):
+    diagram = tmp_path / "d.json"
+    diagram.write_text(json.dumps({"meta": {"title": "T"}, "root": {"nodes": [{"id": "a", "label": "A"}]}}))
+    r = subprocess.run([sys.executable, str(CLI), "usage", str(diagram), "--input-tokens", "5", "--output-tokens", "7"], capture_output=True, text=True)
+    assert r.returncode == 0 and "cost" not in json.loads(diagram.read_text())["meta"]["generation"]
+
+
+def test_check_rejects_bad_edge_sides_label_offsets_and_generation(d):
+    d["root"]["edges"][0].update({"fromSide": "x", "labelT": 2})
+    d["meta"]["generation"] = {"input_tokens": -1}
+    errs = " ".join(story.validate(d).errors)
+    assert "fromSide" in errs and "labelT" in errs and "input_tokens" in errs
+
+
+def test_tags_must_be_a_list_of_strings(d):
+    d["root"]["nodes"][0]["tags"] = ["planned", 3]
+    assert any("tags" in e for e in story.validate(d).errors)
+
+
+def test_upgrade_rebuilds_stale_pages_and_keeps_their_data(tmp_path):
+    # Given a page built with an older engine
+    data = json.loads((ROOT / "examples" / "unfold" / "diagram.json").read_text())
+    old = TEMPLATE.read_text().replace('<script id="ss-engine">', '<script id="ss-engine">/* old */')
+    page = tmp_path / "m.html"
+    page.write_text(story.embed(data, old), encoding="utf-8")
+    run = lambda *a: subprocess.run([sys.executable, str(CLI), "upgrade", *a], capture_output=True, text=True)
+    # When checked, it is reported
+    assert run("--check", str(tmp_path)).returncode == 1
+    # When upgraded, the engine is current, the data is unchanged, and a backup exists on request
+    assert run(str(page), "--backup").returncode == 0
+    assert run("--check", str(tmp_path)).returncode == 0
+    assert story.extract(page.read_text()) == data
+    assert (tmp_path / "m.html.bak").exists()
+
+
+# ---------- plan mode (0.5.0) ----------
+
+def test_status_counts_planned_parts_and_open_questions(tmp_path):
+    d = {"meta": {"title": "T", "intent": "plan"}, "root": {"nodes": [
+        {"id": "a", "label": "A", "tags": ["planned"]},
+        {"id": "b", "label": "B"},
+        {"id": "q", "label": "Which queue?", "tags": ["open question"]},
+        {"id": "c", "label": "C", "tag": "planned", "children": {"nodes": [{"id": "x", "label": "X", "tags": ["planned"]}]}}]}}
+    f = tmp_path / "d.json"
+    f.write_text(json.dumps(d))
+    st = story.planning_status(d)
+    assert (st["planned"], st["built"]) == (3, 1) and st["questions"][0]["node"] == "q"
+    r = subprocess.run([sys.executable, str(CLI), "status", str(f)], capture_output=True, text=True)
+    assert r.returncode == 0 and "1 of 4 parts built, 3 still planned, 1 open question" in r.stdout
+
+
+def test_upgrade_turns_single_tags_into_tag_lists():
+    d = {"root": {"nodes": [{"id": "a", "label": "A", "tag": "planned", "children": {"nodes": [{"id": "b", "label": "B", "tag": "legacy"}]}}]}}
+    assert story.migrate(d) == 2
+    assert d["root"]["nodes"][0]["tags"] == ["planned"] and "tag" not in d["root"]["nodes"][0]
+    assert d["root"]["nodes"][0]["children"]["nodes"][0]["tags"] == ["legacy"]
