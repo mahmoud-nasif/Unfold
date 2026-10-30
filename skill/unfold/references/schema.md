@@ -43,6 +43,7 @@ Two optional `meta` fields record what the map was framed for (SKILL.md step 1),
 | Field | Type | Meaning |
 |---|---|---|
 | `meta.intent` | string | One of `learn`, `demonstrate`, `explain`, `review`, `document`, `debug`, `refactor`, `audit`, `plan`, `other`. See `references/intents.md`. |
+| `meta.presentStyle` | string | `window`: presenting keeps the overview on screen, dimmed, and opens the part each step explains in a smaller window. Omit for the default, which zooms through the levels. |
 | `meta.audience` | string | Free text, one line: who will read the map, e.g. "new backend developers" or "non-technical stakeholders at the quarterly review". |
 
 The engine uses `meta.intent` for its defaults: `demonstrate` opens the page in presentation mode, and `learn` offers the guided tour. Pages without it behave as before.
@@ -56,7 +57,7 @@ The root is a level, and so is every node's `children`.
 | `type`      | string  | `architecture` (default): parts and data flow. `process`: steps and decisions in order. `sequence`: interactions over time; nodes are participants left to right, edges are messages in array order. `state`: states and the events between them. `data`: entities with fields and relations. `class`: classes with members and UML relations. `c4`: people, systems and containers with their `tech`. `deployment`: machines and devices (`node3d`) grouped by environment. `dependency`: modules and what they import. `tree`: a hierarchy, children in edge order. `behaviour`: a behaviour tree; nodes carry `bt`, children run in edge order. `timeline`: events in order along an axis, each with a `date`. Trees and timelines get their own layout. |
 | `caption`   | string  | One line: what this level is *for*. |
 | `direction` | string  | `LR` or `TB`. Leave it out; auto-layout picks the one that fits best. Ignored by `sequence`. |
-| `route`     | string  | How this level's edges are drawn: `curved` (default; an edge that would cross a node is routed around it), `orthogonal` (elbows, always routed around nodes) or `straight`. Ignored by `sequence`. |
+| `route`     | string  | How this level's edges are drawn: `orthogonal` (default; elbows, always routed around nodes), `curved` (an edge that would cross a node is routed around it) or `straight`. Ignored by `sequence`. |
 | `nodes`     | Node[]  | Required. Ids are unique within the level, not globally. |
 | `edges`     | Edge[]  | Links between nodes of this level. |
 | `groups`    | Group[] | Labelled regions, drawn around their member nodes. |
@@ -124,7 +125,7 @@ The root is a level, and so is every node's `children`.
 | `arrow` | string | `end` (default), `both` or `none` (default in data, tree, behaviour and timeline levels). |
 | `rel`   | string | A UML relation, drawn with its own line and end: `inherits` and `implements` (child → parent, hollow triangle), `composition` and `aggregation` (owner → part, filled or hollow diamond at the owner), `association`, `dependency` (open arrow). |
 | `route` | string | Overrides the level's `route` for this edge. |
-| `fromSide`, `toSide` | string | Pin an end to a side of its box: `t`, `r`, `b` or `l`. Set by the editor; leave out to let routing choose. |
+| `fromSide`, `toSide` | string | Pin an end to one of the eight anchors of its box: the side middles `t`, `r`, `b`, `l` or the corners `tr`, `br`, `bl`, `tl`. A corner anchor leaves along the side that faces the other end. Set by the editor; leave out to let routing choose. |
 | `labelT` | number | Where the label sits along the link, 0 to 1 (default: the middle). Set by sliding the label in the editor; it always stays on the line. |
 | `points` | [x, y][] | Bend points the path passes through, in level coordinates. Set by dragging an edge in the editor; leave it out when writing a diagram, auto-routing does better. Tidy clears them. |
 | `diff`  | string | Set by `unfold.py diff --page`: `added`, `removed` or `changed`. |

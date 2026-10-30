@@ -453,3 +453,44 @@ def test_upgrade_turns_single_tags_into_tag_lists():
     assert story.migrate(d) == 2
     assert d["root"]["nodes"][0]["tags"] == ["planned"] and "tag" not in d["root"]["nodes"][0]
     assert d["root"]["nodes"][0]["children"]["nodes"][0]["tags"] == ["legacy"]
+
+
+# ---------- clean-layout rules (references/clean-layout.md) ----------
+
+def test_a_level_with_too_many_nodes_warns(d):
+    # Given a flow level past the size limit, when checked, then it is told to nest related parts
+    for k in range(20):
+        d["root"]["nodes"].append({"id": f"extra{k}", "label": f"Extra {k}"})
+    assert any("nodes in one level" in x for x in warns(d))
+
+
+def test_a_hub_node_warns(d):
+    # Given one node linked to more than the limit, when checked, then it is called a hub
+    first = d["root"]["nodes"][0]["id"]
+    for k in range(9):
+        d["root"]["nodes"].append({"id": f"leaf{k}", "label": f"Leaf {k}"})
+        d["root"]["edges"].append({"from": first, "to": f"leaf{k}"})
+    assert any("makes a hub" in x for x in warns(d))
+
+
+def test_a_crowded_group_warns(d):
+    d["root"]["groups"] = [{"id": "g", "label": "G"}]
+    for k in range(10):
+        d["root"]["nodes"].append({"id": f"m{k}", "label": f"M {k}", "group": "g"})
+    assert any("group 'g' has 10 nodes" in x for x in warns(d))
+
+
+def test_corner_anchors_are_valid_and_unknown_ones_are_not(d):
+    # Given an edge pinned to each of the eight anchors, then it validates; a ninth name does not
+    e = d["root"]["edges"][0]
+    for a in ("t", "tr", "r", "br", "b", "bl", "l", "tl"):
+        e["fromSide"] = a
+        assert story.validate(d).ok
+    e["toSide"] = "middle"
+    assert not story.validate(d).ok
+
+
+def test_the_template_explains_itself_when_scripts_are_blocked():
+    # Given a viewer that blocks inline scripts, when the page opens, then the visible text says what to do
+    t = (ROOT / "skill" / "unfold" / "assets" / "template.html").read_text(encoding="utf-8")
+    assert 'id="app"><div class="nojs">' in t and "Open the file in a web browser" in t

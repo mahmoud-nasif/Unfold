@@ -15,7 +15,7 @@ def _pyproject_version():
 
 def test_every_version_string_agrees():
     v = _pyproject_version()
-    engine = (ROOT / "engine" / "engine.js").read_text(encoding="utf-8")
+    engine = (ROOT / "engine" / "src" / "00-core.js").read_text(encoding="utf-8")
     assert f"/*! unfold engine {v} |" in engine and f"var VERSION='{v}';" in engine
     assert json.loads((ROOT / ".claude-plugin" / "plugin.json").read_text())["version"] == v
     assert f'__version__ = "{v}"' in (ROOT / "src" / "unfold_map" / "__init__.py").read_text(encoding="utf-8")

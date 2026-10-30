@@ -5,6 +5,11 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 ## [Unreleased]
 
 ### Added
+- Eight anchors per box: the middle of each side and the four corners. Links start and end on an anchor (`fromSide` and `toSide` now accept `tr`, `br`, `bl` and `tl` as well), a corner anchor leaves along the side that faces the other end, and the **Ends** menu is a 3 × 3 picker laid out like the box. A link with bends leaves and arrives along the way its anchors face, so moving an end turns the arrow with it.
+- Elbow links that share an end share its anchor and travel as one trunk, branching close to their targets; labels of bundled links slide apart instead of stacking.
+- Presentation in a window (`meta.presentStyle: "window"`): the overview stays put under a dark scrim and each step opens the part it explains in a smaller window, instead of zooming through the levels.
+- `references/clean-layout.md`: the rules for a clean diagram. `unfold.py check` now warns about a level with more than 16 nodes, a node with more than 7 links and a group of more than 8 nodes.
+- A page opened in a viewer that blocks inline scripts (some editor previews do) says so and how to open it, instead of staying blank.
 - Plan mode (`meta.intent: plan`): design a system in conversation when there is no code to scan, draw it as a map of `planned` parts (dashed, counted in the level bar) with `open question` nodes, then build it part by part while the map follows. `unfold.py status` reports how many parts are built. Procedure: `references/plan-mode.md`.
 - Tags: any number per part, replacing the In and Out buttons. Input and Output are tags (still stored as `role`); `planned`, `deprecated`, `external`, `hardware` and others are suggested, and any custom tag can be typed. `tags` replaces the single `tag` (old pages are converted on load).
 - Free links: drag a link's line to pull a bend out of it anywhere, slide its label along the line (`labelT`) and edit its text, and move either end to another side (`fromSide`, `toSide`) with the end dots or the **Ends** menu; dropping an end dot on another box reconnects it.
@@ -19,6 +24,9 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 - `upgrade` converts the old single `tag` into `tags` in the file.
 
 ### Changed
+- Links are elbows by default, on every level type (`route: "curved"` and `"straight"` still work). Links that share no box no longer run on top of each other, and routes prefer the side the flow runs through.
+- A node with a picture shows only the picture; its name appears over it on hover, selection or keyboard focus (always, on touch screens).
+- The engine is split into one file per concern under `engine/src/` (routing in `61-routing.js`, tours in `88-tour.js`, and so on) and joined by `make engine`; the built page is the same single file.
 - Bent links are drawn as a rounded polyline through their bends, so adding several bends no longer overshoots or loops.
 - Tours and presentations move more slowly, jump between distant levels with a dissolve instead of a chain of quick zooms, and a step asked for during a transition now waits for it instead of leaving the view on the wrong level.
 - Bends move freely (no grid snapping).

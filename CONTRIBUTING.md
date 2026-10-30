@@ -24,12 +24,12 @@ Thanks for helping. The project follows one rule: **if it's not a test, it's not
 
 ## Working on the engine
 
-`skill/unfold/assets/template.html` is generated from `engine/`: `engine.css`, `engine.js` (with an `//@@ICONS@@` placeholder), `icons.js` and `sample.json`. Edit those, then run `make engine examples`. A test fails if the committed template is stale.
+`skill/unfold/assets/template.html` is generated from `engine/`: `engine.css`, the scripts in `src/` (one file per concern, joined in filename order: `10-vocabulary`, `51-layout-layered`, `61-routing`, `70-render`, `88-tour`, …; `10-vocabulary.js` holds the `//@@ICONS@@` placeholder), `icons.js` and `sample.json`. Edit those, then run `make engine examples`. Routing lives in `src/61-routing.js`, presentation in `src/88-tour.js`, so a change rarely needs more than one file. A test fails if the committed template is stale.
 
 ## Adding an icon, shape or colour
 
 - **Icon:** add it to `engine/icons.js` (24 × 24, stroke-only, in the compact `M…` / `c cx cy r` / `r x y w h rx` / `e cx cy rx ry` notation) and to `ICONS` in `scripts/unfold.py`.
-- **Shape:** add it to `SHAPES` and `SHAPE_ORDER` in `engine/engine.js`, give it a case in `shapeSVG`, `textBox` and `port`, and add it to `SHAPES` in `scripts/unfold.py`.
+- **Shape:** add it to `SHAPES` and `SHAPE_ORDER` in `engine/src/10-vocabulary.js`, give it a case in `shapeSVG`, `textBox` and `port`, and add it to `SHAPES` in `scripts/unfold.py`.
 - **Level type:** add it to `TYPE_NAMES` and `TYPE_HINTS`, decide its defaults in `defShape`, `defStyle`, `defArrow`, `levelDir` and `levelRoute`, give it a layout in `layoutAny` if layered isn't right, teach `mermaidLevel` to export it, and add it to `LEVEL_TYPES` in `scripts/unfold.py`. Add a level to `examples/types/`. Document when the skill should choose it in `references/reading-code.md`.
 - **Colour:** add `--c-<name>` for both themes and to `COLORS` in the template and in `scripts/unfold.py`.
 
