@@ -84,10 +84,10 @@ def first_edge(pg):
 def test_a_label_can_be_dragged_and_edited(editor):
     e = first_edge(editor)
     idx = next(i for i, x in enumerate(data_or_original(editor)["root"]["edges"]) if x == e)
-    editor.click(f'#ss-scene .edge[data-i="{idx}"] .elabel')
+    editor.locator(f'#ss-scene .edge[data-i="{idx}"] .elabel').click(position={"x": 20, "y": 2})
     box = editor.locator(f'#ss-scene .edge[data-i="{idx}"] .elabel').bounding_box()
     x, y = box["x"] + box["width"] / 2, box["y"] + box["height"] / 2
-    editor.mouse.move(x, y); editor.mouse.down(); editor.mouse.move(x + 60, y - 40, steps=6); editor.mouse.up()
+    editor.mouse.move(x, y); editor.mouse.down(); editor.mouse.move(x + 30, y - 20, steps=6); editor.mouse.up()
     lt = data(editor)["root"]["edges"][idx]["labelT"]
     assert 0.04 <= lt <= 0.96 and abs(lt - 0.5) > 0.03
     # the label stays on the line: its centre is within a few pixels of the path
@@ -97,6 +97,7 @@ def test_a_label_can_be_dragged_and_edited(editor):
       let best = 1e9, L = p.getTotalLength(); for (let k = 0; k <= 200; k++) { const q = p.getPointAtLength(L * k / 200); best = Math.min(best, Math.hypot(q.x - c.x, q.y - c.y)); }
       return best; }""", idx)
     assert near < 12
+    editor.mouse.move(700, 760)  # a box the label was dragged next to shows its anchors while the pointer is on it
     editor.dblclick(f'#ss-scene .edge[data-i="{idx}"] .elabel')
     editor.keyboard.press("Control+a"); editor.keyboard.type("renamed"); editor.keyboard.press("Enter")
     assert data(editor)["root"]["edges"][idx]["label"] == "renamed"

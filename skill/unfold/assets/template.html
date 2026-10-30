@@ -286,6 +286,9 @@ button{font:inherit;color:inherit}
 .node .tb-rule{stroke:var(--line);stroke-width:1}
 .node .img-empty{fill:color-mix(in srgb,var(--nc) 8%,var(--surface))}
 .node .img-rule{stroke:var(--nc);stroke-opacity:.5}
+.node .img-cap{opacity:0;transition:opacity .15s;pointer-events:none}.node .cap-bg{fill:color-mix(in srgb,var(--surface) 90%,transparent)}
+.node:hover .img-cap,.node:focus-visible .img-cap,.node.sel .img-cap,.node.spot .img-cap,.node.lit .img-cap{opacity:1}
+@media (hover:none){.node .img-cap{opacity:1}}
 .node .play circle{fill:rgba(10,15,25,.62)}
 .node .play path{fill:#fff}
 .lifeline{stroke:var(--nc);stroke-opacity:.45;stroke-width:1.5;stroke-dasharray:4 5}
@@ -416,7 +419,14 @@ body.presenting .tourbar h3{font-size:24px}body.presenting .tourbar p{font-size:
 .wph .ep{cursor:grab}
 .ghost-end{fill:none;stroke:var(--focus);stroke-width:2.5;pointer-events:none}
 .editing .edge.sel .elabel{cursor:move}
-.ends-pop{display:grid;gap:8px;width:330px}.ends-row{display:grid;grid-template-columns:64px 1fr;gap:8px;align-items:center;font-size:12.5px;font-weight:600}
+.ends-pop{display:flex;gap:18px;padding:2px 4px}.ends-row{display:grid;justify-items:center;gap:6px;font-size:12.5px;font-weight:600}
+.anchors{display:grid;grid-template-columns:repeat(3,26px);grid-template-rows:repeat(3,26px);gap:2px;padding:5px;border:1.5px solid var(--line);border-radius:9px;background:var(--hover)}
+.anchors button{appearance:none;border:0;background:transparent;padding:0;display:grid;place-items:center;cursor:pointer;border-radius:6px}
+.anchors button i{width:10px;height:10px;border-radius:50%;background:var(--surface);border:1.6px solid var(--muted);transition:transform .1s}
+.anchors button:hover i{border-color:var(--focus);transform:scale(1.25)}
+.anchors button[aria-pressed="true"] i{background:var(--focus);border-color:var(--focus)}
+.anchors .a-auto i{width:auto;height:auto;border:0;background:none;font:600 10.5px/1 inherit;color:var(--muted)}.anchors .a-auto i::before{content:'Auto'}
+.anchors .a-auto[aria-pressed="true"] i{color:var(--focus)}
 
 /* map info panel, top right under the toolbar */
 .infopanel{position:absolute;top:64px;right:16px;z-index:7;width:min(320px,calc(100% - 32px));padding:12px 16px 12px;background:var(--surface);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);font-size:13px}
@@ -434,10 +444,22 @@ body.presenting .spotlight .node:not(.spot){transition:opacity .6s}
 /* parts that are planned, not built yet */
 .node.planned .body .sh{stroke-dasharray:7 5}
 .keys-inline .planned-sw{background:transparent;border:2px dashed var(--muted)}
+
+.nojs{max-width:460px;margin:18vh auto 0;padding:0 24px;font-family:ui-sans-serif,system-ui,sans-serif}.nojs h1{font-size:22px;margin:0 0 8px}.nojs p{margin:0;color:var(--muted);line-height:1.5}
+
+/* presenting with presentStyle "window": the overview stays, dimmed, and a smaller window shows the part being explained */
+.pscrim{position:absolute;inset:0;z-index:7;background:rgba(7,9,20,.72);opacity:0;pointer-events:none;transition:opacity .5s ease}
+body.has-pwin .pscrim{opacity:1}
+.pwin{position:absolute;z-index:8;left:50%;top:calc(50% - 56px);transform:translate(-50%,-50%) scale(.96);width:min(920px,calc(100% - 64px));height:min(56vh,calc(100% - 300px));min-height:240px;display:flex;flex-direction:column;background:var(--paper);border:1px solid var(--line);border-radius:18px;box-shadow:0 30px 80px rgba(0,0,0,.55);overflow:hidden;opacity:0}
+.pwin.in{opacity:1;transform:translate(-50%,-50%) scale(1);transition:opacity .35s ease,transform .45s cubic-bezier(.2,.8,.2,1)}
+.pwin .pw-head{padding:12px 18px;border-bottom:1px solid var(--line);font-family:"Bricolage Grotesque",ui-sans-serif,system-ui,sans-serif;font-size:17px;background:var(--surface)}
+.pwin .pw-body{flex:1;min-height:0;display:flex}.pwin .pw-body>svg{width:100%;height:100%}
+.pwin .pw-note{margin:auto;padding:24px;max-width:560px;text-align:center}.pwin .pw-note img{max-width:100%;max-height:36vh;border-radius:10px}.pwin .pw-note p{font-size:18px;line-height:1.5}
+body.presenting.has-pwin .tourbar{z-index:9}
 </style>
 </head>
 <body>
-<div id="app"></div>
+<div id="app"><div class="nojs"><h1>This diagram needs scripts</h1><p>This viewer blocks the scripts the page runs on. Open the file in a web browser instead, or in VS Code with <b>Live Preview</b> or <b>Simple Browser</b>.</p></div></div>
 <script type="application/json" id="story-data">{"meta":{"title":"Example system","subtitle":"Click a module to step inside"},"root":{"type":"architecture","caption":"A request comes in, gets handled, and a response goes out.","nodes":[{"id":"req","label":"HTTP request","shape":"parallelogram","role":"input","color":"rose"},{"id":"api","label":"API server","icon":"server","color":"blue","children":{"type":"process","caption":"Each request is validated before it is handled.","nodes":[{"id":"start","label":"Request received","shape":"pill","role":"input"},{"id":"valid","label":"Valid?","shape":"diamond","color":"amber"},{"id":"handle","label":"Handle request"},{"id":"reject","label":"Return 400"},{"id":"done","label":"Send response","shape":"pill","role":"output"}],"edges":[{"from":"start","to":"valid"},{"from":"valid","to":"handle","label":"yes"},{"from":"valid","to":"reject","label":"no"},{"from":"handle","to":"done"},{"from":"reject","to":"done"}]}},{"id":"db","label":"Database","shape":"cylinder","color":"teal"},{"id":"res","label":"HTTP response","shape":"parallelogram","role":"output","color":"rose"}],"edges":[{"from":"req","to":"api"},{"from":"api","to":"db","label":"query","arrow":"both","style":"solid"},{"from":"api","to":"res"}]}}</script>
 <script id="ss-engine">
 /*! unfold engine 0.4.1 | MIT License */
@@ -951,17 +973,53 @@ function wrapText(text,maxc){
   return out;
 }
 function iconShown(n){return !!n.icon&&nh(n)>=88&&['diamond','triangle','text','table','class','person','image','initial','final'].indexOf(n.shape)<0;}
-function port(n,side){
+// Every box offers eight anchors: the middle of each side and the four corners. A link starts and ends on one of them.
+// A port is the anchor's point on the outline and the way a link leaves it (dx, dy). A corner leaves along the axis that
+// points toward the far end, so the arrow always arrives the way the anchor faces.
+var CORNER_R={rounded:16,rect:4,table:10,image:12,class:6,text:6,person:20};
+function anchorPoint(n,a){
+  var w=nw(n),h=nh(n),ext=showsInner(n)?6:0,hw=w/2,hh=h/2,sx=a.indexOf('r')>=0?1:-1,sy=a.indexOf('b')>=0?1:-1,k,r,by=hh;
+  if(n.shape==='document')by=hh-wavH(h)*.35;
+  var x,y;
+  switch(n.shape){
+    case 'diamond':x=sx*hw/2;y=sy*hh/2;break;
+    case 'circle':case 'initial':case 'final':case 'cloud':r=n.shape==='cloud'?.62:.7071;x=sx*hw*r;y=sy*hh*r;break;
+    case 'hexagon':k=Math.min(24,w*.16);x=sx*(hw-k);y=sy*hh;break;
+    case 'parallelogram':k=Math.min(26,w*.16);x=sy<0?(sx>0?hw:-hw+k):(sx>0?hw-k:-hw);y=sy*hh;break;
+    case 'triangle':x=sy<0?sx*hw/2:sx*hw;y=sy<0?0:hh;break;
+    case 'cylinder':k=Math.min(14,h*.14);x=sx*hw;y=sy*(hh-k*.5);break;
+    default:
+      r=(n.shape==='pill'?hh:CORNER_R[n.shape]||16)*(1-.7071);r=Math.min(r,hw,hh);
+      x=sx*(hw-r);y=sy*(sy>0?by-r:hh-r);
+  }
+  return {x:n.x+x+(sx>0?ext:0),y:n.y+y+(sy>0?ext:0)};
+}
+function port(n,a,toward,axis){
   var w=nw(n),h=nh(n),ix=w/2,iy=h/2,ext=showsInner(n)?6:0;
   if(n.shape==='parallelogram')ix=w/2-Math.min(26,w*.16)/2;
   if(n.shape==='triangle')ix=w/4;
   var by=iy;if(n.shape==='document')by=iy-wavH(h)*.35;
-  if(side==='l')return {x:n.x-ix,y:n.y,dx:-1,dy:0};
-  if(side==='r')return {x:n.x+ix+ext,y:n.y,dx:1,dy:0};
-  if(side==='t')return {x:n.x,y:n.y-iy,dx:0,dy:-1};
-  return {x:n.x,y:n.y+by+ext,dx:0,dy:1};
+  if(a==='l')return {x:n.x-ix,y:n.y,dx:-1,dy:0};
+  if(a==='r')return {x:n.x+ix+ext,y:n.y,dx:1,dy:0};
+  if(a==='t')return {x:n.x,y:n.y-iy,dx:0,dy:-1};
+  if(a==='b')return {x:n.x,y:n.y+by+ext,dx:0,dy:1};
+  var q=anchorPoint(n,a),sx=a.indexOf('r')>=0?1:-1,sy=a.indexOf('b')>=0?1:-1;
+  if(!axis){
+    var tx=toward?toward.x-q.x:sx,ty=toward?toward.y-q.y:0,okx=sx*tx>0,oky=sy*ty>0;
+    axis=okx&&!oky?'h':oky&&!okx?'v':Math.abs(tx)>=Math.abs(ty)?'h':'v';
+  }
+  q.dx=axis==='h'?sx:0;q.dy=axis==='v'?sy:0;return q;
 }
-var SIDES=['t','r','b','l'];
+// the anchor nearest a point
+function anchorNear(n,p){
+  var best='r',bd=Infinity;
+  SIDES.forEach(function(a){var q=anchorPoint(n,a),d=Math.hypot(q.x-p.x,q.y-p.y);if(d<bd){bd=d;best=a;}});
+  return best;
+}
+// the pair of side middles a link between two boxes uses on its own
+var SIDES=['t','tr','r','br','b','bl','l','tl'];
+var SIDE_MIDS=['t','r','b','l'];
+var ANCHOR_NAMES={t:'Top',tr:'Top right',r:'Right',br:'Bottom right',b:'Bottom',bl:'Bottom left',l:'Left',tl:'Top left'};
 function sides(a,b,dir){
   var dx=b.x-a.x,dy=b.y-a.y,horiz;
   if(dir==='LR'){
@@ -976,108 +1034,95 @@ function sides(a,b,dir){
   return dy>=0?['b','t']:['t','b'];
 }
 function sideToward(n,p){var dx=(p.x-n.x)/(nw(n)/2),dy=(p.y-n.y)/(nh(n)/2);return Math.abs(dx)>=Math.abs(dy)?(dx>=0?'r':'l'):(dy>=0?'b':'t');}
-// a port moved o along its side, kept on the outline of slanted and round shapes
-function portAt(n,side,o){
-  var p=port(n,side);if(!o)return p;
-  var h=nh(n),w=nw(n),hz=side==='l'||side==='r',half=hz?h/2:w/2,k;
-  if(hz){
-    p.y+=o;
-    if(n.shape==='diamond')p.x=n.x+(p.x-n.x)*(1-Math.abs(o)/half);
-    else if(n.shape==='circle')p.x=n.x+(p.x-n.x)*Math.sqrt(Math.max(0,1-o*o/(half*half)));
-    else if(n.shape==='parallelogram'){k=Math.min(26,w*.16);p.x=n.x+(side==='l'?-w/2+k*(.5-o/h):w/2-k*(.5+o/h));}
-    else if(n.shape==='hexagon'){k=Math.min(24,w*.16);p.x=n.x+(side==='l'?-1:1)*(w/2-k*Math.abs(o)/half);}
-  }else{
-    p.x+=o;
-    if(n.shape==='diamond')p.y=n.y+(p.y-n.y)*(1-Math.abs(o)/half);
-    else if(n.shape==='circle')p.y=n.y+(p.y-n.y)*Math.sqrt(Math.max(0,1-o*o/(half*half)));
-  }
-  return p;
-}
-function spreadOf(n,side,m){
-  if(m<2||['initial','final','triangle'].indexOf(n.shape)>=0)return 0;
-  var len=(side==='l'||side==='r'?nh(n):nw(n))*(n.shape==='diamond'||n.shape==='circle'?.4:.66);
-  return Math.min(18,len/(m-1));
-}
-function levelRoute(l){return l.route==='orthogonal'||l.route==='straight'||l.route==='curved'?l.route:({tree:1,behaviour:1,class:1}[levelType(l)]?'orthogonal':'curved');}
+function levelRoute(l){return l.route==='orthogonal'||l.route==='straight'||l.route==='curved'?l.route:'orthogonal';}
 function edgeRoute(e,l){return e.route==='orthogonal'||e.route==='straight'||e.route==='curved'?e.route:levelRoute(l);}
 function edgeGeom(e,l){var i=l.edges.indexOf(e);return i<0?null:levelRoutes(l)[i]||null;}
-// All edges of a level are routed together: ends sharing a node side are spread along it, routes go around
-// other nodes, and each route pays to reuse a lane an earlier one took, so parallel edges stay apart.
+// All edges of a level are routed together. Links end on one of a box's eight anchors; links that share an end share its
+// anchor and travel as one bundle. Routes go around other nodes, and each route pays to reuse a lane an earlier one took,
+// so links that are not related stay apart.
+// leaving or arriving by a side other than the flow's own has to save more than this (about one and a half bends)
+var FLOW_BIAS=60;
 var routeMemo={key:null,res:null};
 function levelRoutes(l){
   var key=JSON.stringify([mode,l.route,l.direction,l.nodes.map(function(n){return [n.id,n.x,n.y,n.w,n.h,n.shape,n.role,n.tags,!!n.children];}),l.edges.map(function(e){return [e.from,e.to,e.route,e.points,e.fromSide,e.toSide];})]);
   if(routeMemo.key===key&&routeMemo.l===l)return routeMemo.res;
-  var dir=levelDir(l),ends=[],slots={},res=[];
+  var dir=levelDir(l),ends=[],res=[];
   var obs=l.nodes.map(function(n){var b=nodeBox(n),P=14;return {id:n.id,x0:b.x-P,y0:b.y-P,x1:b.x+b.w+P,y1:b.y+b.h+P};});
   l.edges.forEach(function(e,i){
     var a=findNode(e.from,l),b=findNode(e.to,l);if(!a||!b||a===b)return;
     var pts=Array.isArray(e.points)?e.points.filter(function(p){return Array.isArray(p)&&isFinite(p[0])&&isFinite(p[1]);}).map(function(p){return {x:+p[0],y:+p[1]};}):[];
     var up=e.rel==='inherits'||e.rel==='implements',rt=edgeRoute(e,l),sd=pts.length?[sideToward(a,pts[0]),sideToward(b,pts[pts.length-1])]:rt==='straight'?[sideToward(a,b),sideToward(b,a)]:up?sides(b,a,dir).reverse():sides(a,b,dir);
-    // ends the user pinned to a side keep it
+    // ends the user pinned to an anchor keep it
     var fs=SIDES.indexOf(e.fromSide)>=0?e.fromSide:null,ts=SIDES.indexOf(e.toSide)>=0?e.toSide:null;
     if(fs)sd[0]=fs;if(ts)sd[1]=ts;
+    var ta=pts.length?pts[0]:b,tb=pts.length?pts[pts.length-1]:a;
     // a route that has to go around things leaves from whichever pair of sides gives the cheapest way round
-    if(!pts.length&&rt!=='straight'&&(rt==='orthogonal'||!clearOf(bezier(port(a,sd[0]),port(b,sd[1]),sd).samples,obs,a.id,b.id))){
-      var best=null;sideCands(a,b,sd).forEach(function(c){if((fs&&c[0]!==fs)||(ts&&c[1]!==ts))return;var r=orthRoute(port(a,c[0]),port(b,c[1]),obs,{});if(r&&(!best||r.cost<best.cost))best={cost:r.cost,sd:c};});
+    if(!pts.length&&rt!=='straight'&&(rt==='orthogonal'||!clearOf(bezier(port(a,sd[0],ta),port(b,sd[1],tb),sd).samples,obs,a.id,b.id))){
+      var best=null;sideCands(a,b,sd).forEach(function(c){if((fs&&c[0]!==fs)||(ts&&c[1]!==ts))return;var r=orthRoute(port(a,c[0],ta),port(b,c[1],tb),obs,{});var cost=r&&r.cost+(c[0]!==sd[0]?FLOW_BIAS:0)+(c[1]!==sd[1]?FLOW_BIAS:0);if(r&&(!best||cost<best.cost))best={cost:cost,sd:c};});
       if(best)sd=best.sd;
     }
-    ends[i]={a:a,b:b,pts:pts,sd:sd};
-    var face=!pts.length&&({l:'r',r:'l',t:'b',b:'t'})[sd[0]]===sd[1];
-    [[a,sd[0],pts.length?pts[0]:b],[b,sd[1],pts.length?pts[pts.length-1]:a]].forEach(function(t,j){var k=t[0].id+'|'+t[1];(slots[k]=slots[k]||[]).push({i:i,j:j,o:t[2],far:face?t[2]:null});});
+    ends[i]={a:a,b:b,pts:pts,sd:sd,fs:fs,ts:ts,ta:ta,tb:tb,ax:[null,null]};
   });
-  function place(){
-    Object.keys(slots).forEach(function(k){
-      var list=slots[k],n=list[0].j?ends[list[0].i].b:ends[list[0].i].a,side=k.slice(k.lastIndexOf('|')+1),hz=side==='l'||side==='r';
-      list.sort(function(p,q){return (hz?p.o.y-q.o.y:p.o.x-q.o.x)||(p.i-q.i);});
-      // each end goes where its link wants to leave (straight across when the nodes line up), kept a gap apart
-      var sp=Math.max(spreadOf(n,side,list.length),list.length>1?10:0),c0=hz?n.y:n.x,half=(hz?nh(n):nw(n))/2*(n.shape==='diamond'||n.shape==='circle'?.4:.66);
-      if(['initial','final','triangle'].indexOf(n.shape)>=0)half=0;
-      // facing sides meet halfway, so nodes that overlap get a straight link
-      var want=list.map(function(s){var d=(hz?s.o.y:s.o.x)-c0;return clamp(s.o===s.far?d/2:d,-half,half);});
-      var got=list.length>1&&half?packLine(want,want.map(function(){return 0;}),want.map(function(_,r){return r?sp:0;}),-half,half):want;
-      // fans nest instead of overlapping: the end whose link travels farthest sideways turns first
-      var lat=list.map(function(s,r){return Math.abs((hz?s.o.y:s.o.x)-c0-got[r]);}),rank=lat.map(function(v,r){return lat.filter(function(w,q){return w>v||(w===v&&q<r);}).length;});
-      list.forEach(function(s,r){ends[s.i][s.j?'ob':'oa']=got[r];ends[s.i][s.j?'kb':'ka']=list.length>1?.45+.55*rank[r]/(list.length-1):1;});
+  // an arrow must never run along a link that leaves the same anchor, so an anchor used both ways hands its
+  // minority over to the nearest corner of that side (the link still leaves along the side's own axis)
+  var held={};
+  ends.forEach(function(x,i){if(x)[0,1].forEach(function(j){var k=(j?x.b:x.a).id+'|'+x.sd[j];(held[k]=held[k]||[]).push({i:i,j:j});});});
+  Object.keys(held).forEach(function(k){
+    var h=held[k],outs=h.filter(function(s){return !s.j;}),ins=h.filter(function(s){return s.j;}),side=k.slice(k.lastIndexOf('|')+1);
+    if(!outs.length||!ins.length||side.length>1)return;
+    var mv=ins.length<outs.length?ins:outs;
+    mv.forEach(function(s){
+      var x=ends[s.i];if(x.pts.length||(s.j?x.ts:x.fs))return;
+      var n=s.j?x.b:x.a,far=s.j?x.a:x.b,hz=side==='l'||side==='r',c=hz?(far.y<n.y?'t':'b'):(far.x<n.x?'l':'r');
+      x.sd[s.j]=hz?c+side:side+c;x.ax[s.j]=hz?'h':'v';
     });
-  }
+  });
+  // links through a corner anchor
+  function portOf(x,j){return port(j?x.b:x.a,x.sd[j],j?x.tb:x.ta,x.ax[j]);}
   var order=ends.map(function(x,i){return i;}).filter(function(i){return ends[i];});
   order.sort(function(i,j){var p=ends[i],q=ends[j];return (Math.abs(p.a.x-p.b.x)+Math.abs(p.a.y-p.b.y))-(Math.abs(q.a.x-q.b.x)+Math.abs(q.a.y-q.b.y));});
   // a link with a clear way gets a curve; one that has to go around things is routed, and routes
-  // sharing a lane are nudged apart, so links never run on top of each other
-  function route(){
-    var used={},routed=[];res=[];
-    order.forEach(function(i){
-      var x=ends[i],e=l.edges[i],pa=portAt(x.a,x.sd[0],x.oa||0),pb=portAt(x.b,x.sd[1],x.ob||0),rt=edgeRoute(e,l);
-      if(x.pts.length)res[i]=throughPoints(pa,pb,x.pts,rt);
-      else if(rt==='straight')res[i]=polyGeom([pa,pb],0);
+  // sharing a lane are nudged apart, so unrelated links never run on top of each other
+  var used={},routed=[];
+  order.forEach(function(i){
+    var x=ends[i],e=l.edges[i],pa=portOf(x,0),pb=portOf(x,1),rt=edgeRoute(e,l);
+    x.pa=pa;x.pb=pb;
+    if(x.pts.length)res[i]=throughPoints(pa,pb,x.pts,rt);
+    else if(rt==='straight')res[i]=polyGeom([pa,pb],0);
+    else{
+      var bz=bezier(pa,pb,x.sd);
+      if(rt==='curved'&&clearOf(bz.samples,obs,x.a.id,x.b.id))res[i]=bz;
       else{
-        var bz=bezier(pa,pb,x.sd,x.ka,x.kb);
-        if(rt==='curved'&&clearOf(bz.samples,obs,x.a.id,x.b.id))res[i]=bz;
-        else{var pl=orthRoute(pa,pb,obs,used);if(pl)routed.push({i:i,pts:pl.pts,R:rt==='curved'?28:10});else res[i]=bz;}
+        // elbow links that share an anchor are one bundle: they run together, branching near their targets
+        var tags=rt==='orthogonal'?['o'+x.a.id+'|'+x.sd[0],'i'+x.b.id+'|'+x.sd[1]]:null,pl=orthRoute(pa,pb,obs,used,tags);
+        if(pl)routed.push({i:i,pts:pl.pts,R:rt==='curved'?28:10,tags:tags});else res[i]=bz;
       }
-    });
-    nudge(routed);
-    routed.forEach(function(r){res[r.i]=polyGeom(simplify(r.pts),r.R);});
-  }
-  place();route();
-  // a routed link may arrive from the other side of where its far node sits: order each side's ends
-  // by where the links really arrive, and route once more if that changed anything
-  var moved=false;
-  Object.keys(slots).forEach(function(k){
-    var list=slots[k],side=k.slice(k.lastIndexOf('|')+1),hz=side==='l'||side==='r',before=list.map(function(s){return s.i+'.'+s.j;}).join();
-    list.forEach(function(s){var g=res[s.i],q=null;if(!g||ends[s.i].pts.length)return;
-      if(g.poly&&g.poly.length>2)q=s.j?g.poly[g.poly.length-2]:g.poly[1];else if(g.samples)q=g.samples[s.j?g.samples.length-7:6];
-      if(q)s.o={x:q.x,y:q.y};});
-    list.sort(function(p,q){return (hz?p.o.y-q.o.y:p.o.x-q.o.x)||(p.i-q.i);});
-    if(list.map(function(s){return s.i+'.'+s.j;}).join()!==before)moved=true;
+    }
   });
-  if(moved){place();route();}
-  ends.forEach(function(x,i){if(x&&res[i]){res[i].pa=portAt(x.a,x.sd[0],x.oa||0);res[i].pb=portAt(x.b,x.sd[1],x.ob||0);res[i].sd=x.sd;}});
+  nudge(routed);
+  routed.forEach(function(r){res[r.i]=polyGeom(simplify(r.pts),r.R);});
+  ends.forEach(function(x,i){if(x&&res[i]){res[i].pa=x.pa;res[i].pb=x.pb;res[i].sd=x.sd;}});
+  spreadLabels(l,res);
   routeMemo={key:key,l:l,res:res};
   return res;
 }
-function bezier(pa,pb,sd,ka,kb){
-  var dist=Math.hypot(pb.x-pa.x,pb.y-pa.y),k=sd[0]===sd[1]?Math.max(70,dist*.3):Math.min(140,dist*.45),k1=k*(ka||1),k2=k*(kb||1);
+// Labels sit halfway along their link. Links that travel as one bundle share their middle, so a label that would
+// land on another one slides along its own path to the nearest free spot.
+function spreadLabels(l,res){
+  var placed=[];
+  l.edges.forEach(function(e,i){
+    var g=res[i];if(!g||!e.label)return;
+    var w=e.label.length*6.9+18,p=labelXY(e,g);
+    function free(q){return !placed.some(function(o){return Math.abs(o.x-q.x)<(o.w+w)/2+4&&Math.abs(o.y-q.y)<26;});}
+    if(g.poly&&!(typeof e.labelT==='number'&&isFinite(e.labelT))&&!free(p)){
+      var fs=[.38,.62,.26,.74,.14,.86],k;
+      for(k=0;k<fs.length;k++){var q=alongPoly(g.poly,fs[k]);if(free(q)){g.mx=q.x;g.my=q.y;p=q;break;}}
+    }
+    placed.push({x:p.x,y:p.y,w:w});
+  });
+}
+function bezier(pa,pb,sd){
+  var dist=Math.hypot(pb.x-pa.x,pb.y-pa.y),k=sd[0]===sd[1]?Math.max(70,dist*.3):Math.min(140,dist*.45),k1=k,k2=k;
   var c1={x:pa.x+pa.dx*k1,y:pa.y+pa.dy*k1},c2={x:pb.x+pb.dx*k2,y:pb.y+pb.dy*k2},sm=[];
   for(var t=0;t<=1.0001;t+=1/24)sm.push(cubicAt(pa,c1,c2,pb,t));
   var m=cubicAt(pa,c1,c2,pb,.5);
@@ -1088,7 +1133,9 @@ function clearOf(pts,obs,ida,idb){
   return !pts.some(function(p,k){if(k<2||k>pts.length-3)return false;return obs.some(function(o){if(o.id===ida||o.id===idb)return false;return p.x>o.x0+10&&p.x<o.x1-10&&p.y>o.y0+10&&p.y<o.y1-10;});});
 }
 // Orthogonal route on the grid of obstacle borders and the lanes between them (A*, bends and reused lanes cost extra).
-function orthRoute(pa,pb,obs,used){
+// Links that share a bundle tag (the same end) find a lane their bundle already took cheaper, so they run together.
+var orthSeq=0;
+function orthRoute(pa,pb,obs,used,tags){
   function stub(p){
     var o=null;obs.forEach(function(b){if(p.x>=b.x0-1&&p.x<=b.x1+1&&p.y>=b.y0-1&&p.y<=b.y1+1){var d=p.dx>0?b.x1-p.x:p.dx<0?p.x-b.x0:p.dy>0?b.y1-p.y:p.y-b.y0;if(!o||d>o)o=d;}});
     var d=Math.max(16,(o||0)+2);return {x:p.x+p.dx*d,y:p.y+p.dy*d};
@@ -1101,7 +1148,9 @@ function orthRoute(pa,pb,obs,used){
   var X=xs.length,Y=ys.length,ix=xs.indexOf(Math.round(s.x)),iy=ys.indexOf(Math.round(s.y)),tx=xs.indexOf(Math.round(t.x)),ty=ys.indexOf(Math.round(t.y));
   if(ix<0||iy<0||tx<0||ty<0)return null;
   function inside(x,y){for(var k=0;k<obs.length;k++){var b=obs[k];if(x>b.x0&&x<b.x1&&y>b.y0&&y<b.y1)return true;}return false;}
-  var DX=[1,-1,0,0],DY=[0,0,1,-1],BEND=40,CROSS=45;
+  var DX=[1,-1,0,0],DY=[0,0,1,-1],BEND=40,CROSS=45,me=tags||['~'+(++orthSeq)];
+  function mine(u){return u.some(function(g){return me.indexOf(g)>=0;});}
+  function foreign(u){return !mine(u);}
   var d0=pa.dx>0?0:pa.dx<0?1:pa.dy>0?2:3,dEnd=pb.dx>0?1:pb.dx<0?0:pb.dy>0?3:2;
   var cost=new Float64Array(X*Y*4).fill(Infinity),from=new Int32Array(X*Y*4).fill(-1),heap=[];
   function push(st,c){heap.push([c,st]);var i=heap.length-1;while(i){var p=(i-1)>>1;if(heap[p][0]<=heap[i][0])break;var tmp=heap[p];heap[p]=heap[i];heap[i]=tmp;i=p;}}
@@ -1118,7 +1167,7 @@ function orthRoute(pa,pb,obs,used){
       var nx=cx+DX[nd],ny=cy+DY[nd];if(nx<0||ny<0||nx>=X||ny>=Y)continue;
       var mx=(xs[cx]+xs[nx])/2,my=(ys[cy]+ys[ny])/2;if(inside(mx,my))continue;
       var seg=nd<2?'h'+Math.min(cx,nx)+','+cy:'v'+cx+','+Math.min(cy,ny);
-      var vk=nx+','+ny,nc=c+Math.abs(xs[nx]-xs[cx])+Math.abs(ys[ny]-ys[cy])+(nd!==dd?BEND:0)+(used[seg]||0)*60+((nd<2?used['V'+vk]:used['H'+vk])?CROSS:0);
+      var vk=nx+','+ny,len=Math.abs(xs[nx]-xs[cx])+Math.abs(ys[ny]-ys[cy]),us=used[seg]||[],nc=c+len*(us.some(mine)?.35:1)+(nd!==dd?BEND:0)+us.filter(foreign).length*60+((nd<2?used['V'+vk]:used['H'+vk])||[]).filter(foreign).length*CROSS;
       if(nx===tx&&ny===ty&&nd!==dEnd)nc+=BEND;
       var ns2=(ny*X+nx)*4+nd;if(nc<cost[ns2]){cost[ns2]=nc;from[ns2]=st;push(ns2,nc+hcost(nx,ny));}
     }
@@ -1128,7 +1177,8 @@ function orthRoute(pa,pb,obs,used){
   // remember the lanes and crossing points this route took, so later routes avoid running on it or across it
   for(var q=1;q<cells.length;q++){
     var a1=cells[q-1],b1=cells[q],ax=a1%X,ay=(a1-ax)/X,bx=b1%X,by=(b1-bx)/X,hz=ay===by,key=hz?'h'+Math.min(ax,bx)+','+ay:'v'+ax+','+Math.min(ay,by);
-    used[key]=(used[key]||0)+1;used[(hz?'H':'V')+ax+','+ay]=1;used[(hz?'H':'V')+bx+','+by]=1;
+    (used[key]=used[key]||[]).push(me);
+    [(hz?'H':'V')+ax+','+ay,(hz?'H':'V')+bx+','+by].forEach(function(m){(used[m]=used[m]||[]).push(me);});
   }
   var pts=[{x:pa.x,y:pa.y}];cells.forEach(function(c){var x=c%X;pts.push({x:xs[x],y:ys[(c-x)/X]});});pts.push({x:pb.x,y:pb.y});
   // the stubs leave the ports straight; keep the port's own coordinate so the first and last legs are exact
@@ -1160,9 +1210,16 @@ function nudge(routes){
       while(j<segs.length&&Math.abs(segs[j].c-segs[i].c)<1&&segs[j].a<end-1){end=Math.max(end,segs[j].b);j++;}
       var bundle=segs.slice(i,j);i=j;
       if(bundle.length<2||bundle.every(function(s){return s.r===bundle[0].r;}))continue;
-      bundle.sort(function(s1,s2){return s1.side-s2.side;});
-      var sp=Math.min(10,24/(bundle.length-1));
-      bundle.forEach(function(s,n){var d=(n-(bundle.length-1)/2)*sp;s.r.pts[s.k][c]+=d;s.r.pts[s.k+1][c]+=d;});
+      // routes of one bundle (they share an end) already agree on this lane: they move together
+      var lanes=[];
+      bundle.forEach(function(s){
+        var ln=lanes.find(function(q){return q.segs.some(function(o){return o.r===s.r||(s.r.tags&&o.r.tags&&s.r.tags.some(function(g){return o.r.tags.indexOf(g)>=0;}));});});
+        if(ln){ln.segs.push(s);ln.side+=s.side;}else lanes.push({segs:[s],side:s.side});
+      });
+      if(lanes.length<2)continue;
+      lanes.sort(function(p,q){return p.side/p.segs.length-q.side/q.segs.length;});
+      var sp=Math.min(10,24/(lanes.length-1));
+      lanes.forEach(function(ln,n){var d=(n-(lanes.length-1)/2)*sp;ln.segs.forEach(function(s){s.r.pts[s.k][c]+=d;s.r.pts[s.k+1][c]+=d;});});
     }
   });
 }
@@ -1193,24 +1250,29 @@ function alongPoly(pts,f){
   var want=L*f;for(i=1;i<pts.length;i++){var s=Math.hypot(pts[i].x-pts[i-1].x,pts[i].y-pts[i-1].y);if(want<=s&&s>0){var t=want/s;return {x:pts[i-1].x+(pts[i].x-pts[i-1].x)*t,y:pts[i-1].y+(pts[i].y-pts[i-1].y)*t};}want-=s;}
   return pts[pts.length-1];
 }
-// a route through bend points the user placed
+// a route through bend points the user placed. It leaves and arrives the way its anchors face: a short stub
+// goes out of each end before the first bend, so moving an end to another anchor turns the arrow with it.
 function throughPoints(pa,pb,pts,rt){
-  var C=[pa].concat(pts,[pb]),mids=[],g;
-  if(rt==='curved'){
-    // a polyline with soft corners: it goes exactly where the bends are, and cannot overshoot or loop
-    g=polyGeom(C,34);g.mids=C.slice(1).map(function(b,j){return {x:(C[j].x+b.x)/2,y:(C[j].y+b.y)/2,k:j};});return g;
-  }
+  var S=rt==='straight'?0:18,sa=S?{x:pa.x+pa.dx*S,y:pa.y+pa.dy*S}:null,sb=S?{x:pb.x+pb.dx*S,y:pb.y+pb.dy*S}:null;
+  var C=[pa].concat(sa?[sa]:[],pts,sb?[sb]:[],[pb]),off=sa?1:0,tail=sb?2:1,g;
+  // the handle halfway along leg j (from C[j-1] to C[j]) adds a bend at that place; the stubs get none
+  function mid(j,x,y){return j>off&&j<=C.length-tail?{x:x,y:y,k:Math.min(pts.length,j-1-off)}:null;}
+  function mids(){return C.slice(1).map(function(b,j){return mid(j+1,(C[j].x+b.x)/2,(C[j].y+b.y)/2);}).filter(Boolean);}
   if(rt==='orthogonal'){
-    var P=[pa],hz=!!pa.dx;
+    var P=[pa],hz=!!pa.dx,ms=[];
     for(var j=1;j<C.length;j++){
       var a=P[P.length-1],b=C[j];
-      if(Math.abs(a.x-b.x)>.5&&Math.abs(a.y-b.y)>.5){var el=hz?{x:b.x,y:a.y}:{x:a.x,y:b.y};P.push(el);mids.push({x:el.x,y:el.y,k:j-1});hz=!hz;}
-      else mids.push({x:(a.x+b.x)/2,y:(a.y+b.y)/2,k:j-1});
-      P.push(b);
+      if(Math.abs(a.x-b.x)>.5&&Math.abs(a.y-b.y)>.5){
+        // the turn into the last stub is made so the final leg runs along the anchor's own axis
+        var el=sb&&j===C.length-2?(pb.dx?{x:b.x,y:a.y}:{x:a.x,y:b.y}):(hz?{x:b.x,y:a.y}:{x:a.x,y:b.y}),m=mid(j,el.x,el.y);
+        if(m)ms.push(m);P.push(el);
+      }else{var m2=mid(j,(a.x+b.x)/2,(a.y+b.y)/2);if(m2)ms.push(m2);}
+      P.push(b);hz=Math.abs(b.y-P[P.length-2].y)<.5;
     }
-    g=polyGeom(simplify(P),10);g.mids=mids;return g;
+    g=polyGeom(simplify(P),10);g.mids=ms;return g;
   }
-  g=polyGeom(C,6);g.mids=C.slice(1).map(function(b,j){return {x:(C[j].x+b.x)/2,y:(C[j].y+b.y)/2,k:j};});return g;
+  // curved: a polyline with soft corners that goes exactly where the bends are, and cannot overshoot or loop
+  g=polyGeom(C,rt==='curved'?34:6);g.mids=mids();return g;
 }
 function norm(x,y){var L=Math.hypot(x,y)||1;return {x:x/L,y:y/L};}
 function nodeBox(n){var t=badged(n)?26:0;return {x:n.x-nw(n)/2,y:n.y-nh(n)/2-t,w:nw(n)+(showsInner(n)?6:0),h:nh(n)+t+(showsInner(n)?6:0)};}
@@ -1298,9 +1360,11 @@ function nodeMarkup(n,l){
   var tech=n.tech?String(n.tech):'';if(tech&&lines.length>=maxLines&&lines.length>1)lines=lines.slice(0,lines.length-1);
   var blockH=lines.length*lh+(showIc?icS+10:0)+(tech?16:0),top=tb.dy-blockH/2;
   if(showIc){s+='<circle class="halo" cx="0" cy="'+(top+icS/2)+'" r="'+(icS*.95)+'"/>'+worldIcon(n.icon,n.label,icS,0,top+icS/2);top+=icS+10;}
+  var capped=n.shape==='image'&&!!imagePoster(n);
+  if(capped)s+='<g class="img-cap"><rect class="cap-bg" x="'+(X+1)+'" y="'+(h/2-39)+'" width="'+(w-2)+'" height="38" rx="11"/>';
   s+='<text class="lbl" font-size="'+fs+'" font-weight="'+(t.bold===false?500:(t.bold?750:600))+'"'+(t.italic?' font-style="italic"':'')+'>';
   lines.forEach(function(ln,i){s+='<tspan x="0" y="'+(top+lh*(i+.78)).toFixed(1)+'">'+esc(ln)+'</tspan>';});
-  s+='</text>';
+  s+='</text>'+(capped?'</g>':'');
   if(tech){var tm=Math.max(4,Math.floor(tb.w/6.4));s+='<text class="tech" x="0" y="'+(top+lines.length*lh+13).toFixed(1)+'">['+esc(tech.length>tm?tech.slice(0,tm-1)+'…':tech)+']</text>';}
   return s+nodeExtras(n,inner,isSel)+'</g>';
 }
@@ -1323,7 +1387,7 @@ function nodeExtras(n,inner,isSel){
   if(n.confidence==='inferred'&&['initial','final','text'].indexOf(n.shape)<0)s+='<g class="conf" transform="translate('+(X+12)+' '+(h/2-12)+')"><title>'+CONF_TEXT.inferred+'</title><circle r="8"/><text y="3.6">?</text></g>';
   if(mode==='edit'&&n.shape!=='text'){
     // ports keep their size on screen at any zoom (--pz), with a wider invisible ring to grab
-    ['t','r','b','l'].forEach(function(sd){var p=port(n,sd);s+='<g class="port" data-port="'+sd+'" transform="translate('+(p.x-n.x)+' '+(p.y-n.y)+')"><g class="pz"><circle class="port-hit" r="15"/><circle class="port-dot" r="6"/></g></g>';});
+    SIDES.forEach(function(sd){var p=port(n,sd);s+='<g class="port" data-port="'+sd+'" transform="translate('+(p.x-n.x)+' '+(p.y-n.y)+')"><g class="pz"><circle class="port-hit" r="15"/><circle class="port-dot" r="6"/></g></g>';});
   }
   if(mode==='edit'&&isSel&&sel.nodes.length===1&&n.shape!=='initial'&&n.shape!=='final')s+='<g class="rs" transform="translate('+(w/2)+' '+(h/2)+')"><rect class="pz" x="-6" y="-6" width="12" height="12" rx="3"/></g>';
   return s;
@@ -1341,14 +1405,16 @@ function tableInner(n){
   return s;
 }
 var clipSeq=0;
+// a node with a picture shows the picture alone: its name appears over the bottom of it on hover, selection or focus
+function imagePoster(n){var m=mediaList(n)[0]||{},t=mediaType(m);return t==='image'?m.src:m.poster;}
 function imageInner(n){
-  var w=nw(n),h=nh(n),X=-w/2,Y=-h/2,ih=h-38,id='ssclip'+(++clipSeq),m=mediaList(n)[0]||{},t=mediaType(m),s='';
+  var w=nw(n),h=nh(n),X=-w/2,Y=-h/2,has=!!imagePoster(n),ih=has?h:h-38,id='ssclip'+(++clipSeq),m=mediaList(n)[0]||{},t=mediaType(m),s='';
   s+='<clipPath id="'+id+'"><rect x="'+(X+1)+'" y="'+(Y+1)+'" width="'+(w-2)+'" height="'+ih+'" rx="11"/></clipPath>';
   var poster=t==='image'?m.src:m.poster;
   if(poster)s+='<image href="'+esc(poster)+'" x="'+X+'" y="'+Y+'" width="'+w+'" height="'+ih+'" preserveAspectRatio="xMidYMid slice" clip-path="url(#'+id+')"/>';
   else s+='<rect class="img-empty" x="'+(X+1)+'" y="'+(Y+1)+'" width="'+(w-2)+'" height="'+ih+'" clip-path="url(#'+id+')"/>'+(t?'':worldIcon('camera','',28,0,Y+ih/2));
   if(t==='video'||t==='embed')s+='<g class="play" transform="translate(0 '+(Y+ih/2)+')"><circle r="20"/><path d="M-6 -9 10 0 -6 9z"/></g>';
-  s+='<line class="img-rule" x1="'+X+'" x2="'+(w/2)+'" y1="'+(Y+ih)+'" y2="'+(Y+ih)+'"/>';
+  if(!has)s+='<line class="img-rule" x1="'+X+'" x2="'+(w/2)+'" y1="'+(Y+ih)+'" y2="'+(Y+ih)+'"/>';
   return s;
 }
 // UML ends: hollow triangle (inherits), filled or hollow diamond (owns), open arrow (uses); each with a selected twin
@@ -1404,7 +1470,7 @@ function edgeHandles(l){
   if(mode!=='edit'||sel.edge==null||isSeq(l))return '';
   var e=l.edges[sel.edge],g=e&&edgeGeom(e,l);if(!g)return '';
   var s='<g class="wph">';
-  if(g.pa&&g.pb)[g.pa,g.pb].forEach(function(q,k){s+='<g class="ep" data-end="'+k+'" transform="translate('+q.x+' '+q.y+')"><title>Drag to another side, or onto another node, to move this end</title><g class="pz"><circle class="port-hit" r="13"/><circle class="ep-dot" r="6.5"/></g></g>';});
+  if(g.pa&&g.pb)[g.pa,g.pb].forEach(function(q,k){s+='<g class="ep" data-end="'+k+'" transform="translate('+q.x+' '+q.y+')"><title>Drag to another anchor, or onto another node, to move this end</title><g class="pz"><circle class="port-hit" r="13"/><circle class="ep-dot" r="6.5"/></g></g>';});
   // a hollow dot under the label would steal its drag, so it sits just below the label instead
   var lq=e.label?labelXY(e,g):null,lhw=e.label?(e.label.length*6.9+18)/2+6:0;
   (g.mids||[]).forEach(function(m){var hy=m.y;if(lq&&Math.abs(m.x-lq.x)<lhw&&Math.abs(m.y-lq.y)<17)hy=lq.y+26;s+='<g class="wpm" data-k="'+m.k+'" transform="translate('+m.x+' '+hy+')"><title>Drag to bend</title><g class="pz"><circle class="port-hit" r="12"/><circle class="wp-dot" r="5"/></g></g>';});
@@ -1657,9 +1723,10 @@ function renderToolbar(){
       '<button class="ib" data-act="ereverse" title="Reverse direction" aria-label="Reverse">'+uiIcon('reverse')+'</button>'+
       '<button class="ib tb-danger" data-act="del" title="Delete (Del)" aria-label="Delete">'+uiIcon('trash')+'</button>';
     if(pop==='ends'){
-      var SD={t:['Top','up'],r:['Right','arrowR'],b:['Bottom','down'],l:['Left','back']};
+      // each end picks one of the box's eight anchors, laid out like the box itself; the middle is automatic
+      var GRID=['tl','t','tr','l','','r','bl','b','br'];
       p='<div class="ends-pop">'+[['from','Starts at',e.fromSide],['to','Ends at',e.toSide]].map(function(r){
-        return '<div class="ends-row"><span>'+r[1]+'</span><div class="seg">'+[''].concat(SIDES).map(function(k){return '<button data-act="eside" data-arg="'+r[0]+':'+k+'" aria-pressed="'+((r[2]||'')===k)+'" title="'+(k?SD[k][0]:'Automatic')+'">'+(k?SD[k][0]:'Auto')+'</button>';}).join('')+'</div></div>';}).join('')+'</div>';
+        return '<div class="ends-row"><span>'+r[1]+'</span><div class="anchors" role="group" aria-label="'+r[1]+'">'+GRID.map(function(k){return '<button data-act="eside" data-arg="'+r[0]+':'+k+'" class="'+(k?'a-'+k:'a-auto')+'" aria-pressed="'+((r[2]||'')===k)+'" title="'+(k?ANCHOR_NAMES[k]:'Automatic')+'" aria-label="'+(k?ANCHOR_NAMES[k]:'Automatic')+'"><i></i></button>';}).join('')+'</div></div>';}).join('')+'</div>';
     }
     if(pop==='rel')p='<div class="menu">'+['','inherits','implements','composition','aggregation','association','dependency'].map(function(k){return '<button data-act="set-rel" data-arg="'+k+'" aria-pressed="'+((e.rel||'')===k)+'"><span>'+(k?k.charAt(0).toUpperCase()+k.slice(1):'None')+'<small>'+({'':'A plain link',inherits:'Child \u2192 parent class',implements:'Class \u2192 interface',composition:'Owner \u25c6\u2192 part that lives and dies with it',aggregation:'Owner \u25c7\u2192 part that can exist alone',association:'Holds a reference',dependency:'Uses it for a while'}[k])+'</small></span></button>';}).join('')+'</div>';
   }else if(sel.group){
@@ -1876,10 +1943,11 @@ function nodeNear(p,skip){
   }
   return best;
 }
-function linkNodes(from,to){
+// from and to are anchors the user dragged the link between; a link made without them leaves its ends to routing
+function linkNodes(from,to,fromSide,toSide){
   var l=cur(),k=-1;l.edges.forEach(function(x,i){if(x.from===from&&x.to===to)k=i;});
   if(k>=0){setSel({edge:k});toast('These two are already linked.');return;}
-  commit(function(){l.edges.push({from:from,to:to});sel={nodes:[],edge:l.edges.length-1,group:null};});
+  commit(function(){var ne={from:from,to:to};if(fromSide)ne.fromSide=fromSide;if(toSide)ne.toSide=toSide;l.edges.push(ne);sel={nodes:[],edge:l.edges.length-1,group:null};});
 }
 var linkFrom=null;
 function startLink(id){linkFrom=id;document.body.classList.add('linking');pop=null;renderToolbar();toast('Click the node to link to. Esc cancels.');}
@@ -2162,7 +2230,7 @@ function onDown(e){
   }
   var wpEl=cl('.wp'),wpmEl=cl('.wpm');
   if((wpEl||wpmEl)&&sel.edge!=null){drag=Object.assign(base,{kind:'wp',i:sel.edge,k:+(wpEl||wpmEl).dataset.k,add:!!wpmEl,snap:snapshot()});return;}
-  if(portEl&&nodeEl){var src=findNode(nodeEl.dataset.id),p=port(src,portEl.dataset.port);drag=Object.assign(base,{kind:'connect',from:src.id,p:p});return;}
+  if(portEl&&nodeEl){var src=findNode(nodeEl.dataset.id),p=port(src,portEl.dataset.port);drag=Object.assign(base,{kind:'connect',from:src.id,p:p,side:portEl.dataset.port});return;}
   if(rsEl&&nodeEl){var rn=findNode(nodeEl.dataset.id);drag=Object.assign(base,{kind:'resize',n:rn,w0:nw(rn),h0:nh(rn),x0:rn.x,y0:rn.y,snap:snapshot()});return;}
   if(nodeEl){
     var id=nodeEl.dataset.id;
@@ -2219,7 +2287,7 @@ function onMove(e){
       var other=drag.end?ee.from:ee.to,tn=nodeNear(p,other),gz=$('#ss-ghost-end');
       scene.querySelectorAll('.node.drop-target').forEach(function(el){el.classList.remove('drop-target');});
       if(!tn){if(gz)gz.remove();break;}
-      var tp=port(tn,sideToward(tn,p));
+      var tp=port(tn,anchorNear(tn,p));
       if(!gz){gz=document.createElementNS(NS,'circle');gz.setAttribute('id','ss-ghost-end');gz.setAttribute('class','ghost-end');svg.appendChild(gz);}
       gz.setAttribute('cx',tp.x);gz.setAttribute('cy',tp.y);gz.setAttribute('r',pxToWorld(8));
       var tel=scene.querySelector('.node[data-id="'+cssId(tn.id)+'"]');if(tel)tel.classList.add('drop-target');break;
@@ -2253,7 +2321,7 @@ function onUp(e){
     if(!d.moved)return;
     var el_=cur().edges[d.i];if(!el_)return;
     var pw=toWorld(e),tn=nodeNear(pw,d.end?el_.from:el_.to);if(!tn)return;
-    var sd_=sideToward(tn,pw);
+    var sd_=anchorNear(tn,pw);
     commit(function(){
       var ed=cur().edges[d.i],key=d.end?'to':'from';
       if(ed[key]!==tn.id){ed[key]=tn.id;delete ed.points;delete ed[d.end?'toSide':'fromSide'];}
@@ -2273,7 +2341,7 @@ function onUp(e){
     if(!d.moved)return;
     // link to the node under the pointer, or one within a short reach of it; only empty canvas makes a new node
     var tgt=nodeNear(toWorld(e),d.from),l=cur(),self=!tgt&&findNode(d.from)&&inBox(toWorld(e),findNode(d.from),0);
-    if(tgt){linkNodes(d.from,tgt.id);}
+    if(tgt){var tw=toWorld(e),ta=anchorNear(tgt,tw),tq=anchorPoint(tgt,ta);linkNodes(d.from,tgt.id,d.side,Math.hypot(tq.x-tw.x,tq.y-tw.y)<=pxToWorld(28)?ta:null);}
     else if(!self){
       var p=toWorld(e),src=findNode(d.from),nid;
       commit(function(){var n=newNode(l,src.shape==='pill'||src.shape==='diamond'?null:src.shape,p.x,p.y);if(src.color&&n.shape===src.shape)n.color=src.color;l.nodes.push(n);l.edges.push({from:d.from,to:n.id});nid=n.id;sel={nodes:[nid],edge:null,group:null};});
@@ -2668,7 +2736,7 @@ function startTour(k,present){
   aboutOpen=false;renderAbout();closeSearch();showStep(0);
 }
 function endTour(){
-  tour=null;pace=1;setPresent(false);scene.classList.remove('spotlight');scene.querySelectorAll('.spot').forEach(function(el){el.classList.remove('spot');});
+  tour=null;pace=1;setPresent(false);var pw=$('#ss-pwin');if(pw){pw.hidden=true;pw.innerHTML='';}document.body.classList.remove('has-pwin');scene.classList.remove('spotlight');scene.querySelectorAll('.spot').forEach(function(el){el.classList.remove('spot');});
   renderTour();if(notesWin&&!notesWin.closed)notesWin.close();notesWin=null;fitView(420);
 }
 function setPresent(on){
@@ -2682,10 +2750,38 @@ function showStep(i){
   detailId=null;renderCard();hideHint();renderTour();updateNotes();runStep();
 }
 // moves the camera to the current step; a step asked for while the camera is still travelling waits its turn
+// meta.presentStyle 'window': the overview stays where it is, dimmed, and what a step is about opens in a smaller window
+// on top of it (the inner diagram of the part, or its note), so a presentation never zooms through the levels.
+function windowStyle(){return presenting&&data.meta.presentStyle==='window';}
+function runWindowStep(){
+  var i=tour.i,s=tour.t.steps[i],p=Array.isArray(s.path)?s.path:[],top=p.length?p[0]:s.node,n=s.node&&findNode(s.node,levelAt(p)),inner=n&&n.children&&n.children.nodes.length?p.concat([s.node]):p;
+  var go=path.length?goToPath([]):Promise.resolve();
+  return go.then(function(){
+    if(!tour||tour.i!==i)return;
+    scene.querySelectorAll('.spot').forEach(function(el){el.classList.remove('spot');});
+    scene.classList.toggle('spotlight',!!top);
+    if(top)scene.querySelectorAll('.node').forEach(function(el){if(el.dataset.id===top)el.classList.add('spot');});
+    scene.querySelectorAll('.edge').forEach(function(el){var e=data.root.edges[+el.dataset.i];if(top&&e&&(e.from===top||e.to===top))el.classList.add('spot');});
+    animateCam(fitTo(viewTarget()),ms(500));
+    showWindow(s,inner,n);
+    tour.moving=false;renderTour();
+  });
+}
+function showWindow(s,tp,n){
+  var el=$('#ss-pwin');if(!el)return;
+  if(!tp.length&&!(n&&(mediaList(n).length||n.note))){el.hidden=true;el.innerHTML='';document.body.classList.remove('has-pwin');return;}
+  var l=levelAt(tp),title=tp.length?pathLabels(tp).join(' \u203a '):n.label,body;
+  if(tp.length&&l&&l.nodes.length){clipSeq=5000;body=levelSVG(tp).replace(/ width="\d+" height="\d+"/,'');}
+  else{var m=mediaList(n)[0];body='<div class="pw-note">'+(m&&mediaType(m)==='image'?'<img src="'+esc(m.src)+'" alt="">':'')+(n.note?'<p>'+esc(n.note)+'</p>':'')+'</div>';}
+  el.innerHTML='<div class="pw-head"><b>'+esc(title)+'</b></div><div class="pw-body">'+body+'</div>';
+  el.hidden=false;document.body.classList.add('has-pwin');
+  el.classList.remove('in');void el.offsetWidth;el.classList.add('in');
+}
 function runStep(){
   if(!tour)return;
   if(busy||tour.moving){tour.again=true;return;}
   tour.moving=true;tour.again=false;
+  if(windowStyle()){runWindowStep();return;}
   var i=tour.i,s=tour.t.steps[i];
   goToPath(Array.isArray(s.path)?s.path:[]).then(function(){
     if(!tour)return;tour.moving=false;
@@ -2784,7 +2880,8 @@ function sceneMarkup(l,flat){
   if(isSeq(l)){var bt=seqBottom(l);l.nodes.forEach(function(n){s+='<line class="lifeline" style="--nc:'+colorVar(n.color)+'" x1="'+n.x+'" x2="'+n.x+'" y1="'+(n.y+nh(n)/2)+'" y2="'+bt+'"/>';});}
   l.groups.forEach(function(g){s+=groupMarkup(g,l);});
   s+=timelineMarkup(l);
-  l.edges.forEach(function(e,i){s+=edgeMarkup(e,i,l);});
+  // a selected link is drawn last, so its label stays reachable where bundled links share a trunk
+  l.edges.map(function(e,i){return i;}).sort(function(a,b){return (a===sel.edge)-(b===sel.edge)||a-b;}).forEach(function(i){s+=edgeMarkup(l.edges[i],i,l);});
   l.nodes.forEach(function(n){s+=nodeMarkup(n,l);});
   return s;
 }
@@ -3107,7 +3204,7 @@ function boot(){
     '<div class="ftb" id="ss-ftb" role="toolbar" aria-label="Selection tools" hidden></div><div class="card" id="ss-card" hidden></div>'+
     '<div class="hint-tip" id="ss-hint" role="tooltip" hidden></div><aside class="about" id="ss-about" aria-label="About this diagram" hidden></aside><aside class="infopanel" id="ss-info" aria-label="Map info" hidden></aside>'+
     '<div class="viewer" id="ss-viewer" role="dialog" aria-modal="true" aria-label="Media" hidden></div><input type="file" id="ss-file" accept="image/*,video/*" hidden>'+
-    '<div class="search" id="ss-search" role="dialog" aria-label="Search" hidden></div><section class="tourbar" id="ss-tour" aria-label="Tour" aria-live="polite" hidden></section>'+
+    '<div class="search" id="ss-search" role="dialog" aria-label="Search" hidden></div><div class="pscrim" id="ss-pscrim"></div><section class="pwin" id="ss-pwin" aria-label="Detail" hidden></section><section class="tourbar" id="ss-tour" aria-label="Tour" aria-live="polite" hidden></section>'+
     '<div class="toast" id="ss-toast" role="status" hidden></div><div class="modal" id="ss-modal" hidden></div>';
   svg=$('#ss-canvas');scene=$('#ss-scene');
   var raw=document.getElementById('story-data').textContent;

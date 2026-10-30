@@ -69,7 +69,7 @@ ROLES = frozenset({"input", "output"})
 EDGE_STYLES = frozenset({"flow", "solid", "dashed"})
 ARROWS = frozenset({"end", "both", "none"})
 ROUTES = frozenset({"curved", "orthogonal", "straight"})
-SIDES = frozenset({"t", "r", "b", "l"})
+SIDES = frozenset({"t", "tr", "r", "br", "b", "bl", "l", "tl"})
 GEN_NUMBERS = ("input_tokens", "output_tokens", "cache_read_tokens", "cache_write_tokens", "cost", "duration_s")
 GEN_STRINGS = ("agent", "model", "currency", "generated_at", "note")
 TEXT_SIZES = frozenset({"s", "m", "l"})
@@ -84,6 +84,9 @@ UNMARKED_SHAPES = ("initial", "final", "text")
 LEGACY_NODE_FIELDS = ("kind", "stats")
 MAX_LABEL = 60
 MAX_EDGE_LABEL = 28
+MAX_LEVEL_NODES = 16   # clean-layout rule 2 (aim for 12)
+MAX_NODE_LINKS = 7     # clean-layout rule 4 (aim for 5)
+MAX_GROUP_NODES = 8    # clean-layout rule 3
 
 DATA_RE = re.compile(r'(<script type="application/json" id="story-data">)(.*?)(</script>)', re.S)
 TITLE_RE = re.compile(r"<title>.*?</title>", re.S)
@@ -212,6 +215,28 @@ def _check_groups(level, where, rep):
     return ids
 
 
+def _lint_clean_layout(level, where, nodes, edges, rep):
+    """The structural rules of references/clean-layout.md: a level that breaks them can't be drawn cleanly, whatever the layout."""
+    named = [n for n in nodes if isinstance(n, dict)]
+    if len(named) > MAX_LEVEL_NODES:
+        rep.warn(f"{where}: {len(named)} nodes in one level; nest related parts so each level has at most {MAX_LEVEL_NODES}")
+    degree = {}
+    for e in edges:
+        if isinstance(e, dict):
+            for end in ("from", "to"):
+                degree[e.get(end)] = degree.get(e.get(end), 0) + 1
+    for nid, d in sorted(degree.items(), key=lambda kv: str(kv[0])):
+        if d > MAX_NODE_LINKS:
+            rep.warn(f"{where}: '{nid}' has {d} links; more than {MAX_NODE_LINKS} makes a hub, so group what it talks to or split the node")
+    sizes = {}
+    for n in named:
+        if n.get("group"):
+            sizes[n["group"]] = sizes.get(n["group"], 0) + 1
+    for gid, c in sorted(sizes.items()):
+        if c > MAX_GROUP_NODES:
+            rep.warn(f"{where}: group '{gid}' has {c} nodes; keep a group to {MAX_GROUP_NODES} or split it")
+
+
 def _check_level(level, where, rep):
     if not isinstance(level, dict):
         rep.error(f"{where}: a level must be an object")
@@ -275,7 +300,7 @@ def _check_level(level, where, rep):
             rep.error(f"{loc}: 'route' must be one of {', '.join(sorted(ROUTES))}")
         for side in ("fromSide", "toSide"):
             if e.get(side) is not None and e[side] not in SIDES:
-                rep.error(f"{loc}: '{side}' must be one of t, r, b, l")
+                rep.error(f"{loc}: '{side}' must be one of t, tr, r, br, b, bl, l, tl")
         lt = e.get("labelT")
         if lt is not None and not (_num(lt) and 0 <= lt <= 1):
             rep.error(f"{loc}: 'labelT' must be a number from 0 to 1 (where the label sits along the link)")
@@ -295,6 +320,7 @@ def _check_level(level, where, rep):
             rep.warn(f"{where}: tables without fields: {', '.join(map(str, loose))}")
     if ltype not in FLOW_TYPES:
         return
+    _lint_clean_layout(level, where, nodes, edges, rep)
     if nodes and edges and "input" not in roles:
         rep.warn(f"{where}: no node is marked as an input; readers won't see where data enters")
     if nodes and edges and "output" not in roles:

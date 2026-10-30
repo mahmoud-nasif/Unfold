@@ -4,7 +4,7 @@
     python tools/bump_version.py 0.4.1      # or: make bump V=0.4.1
 
 Updates pyproject.toml, src/unfold_map/__init__.py, .claude-plugin/plugin.json, the engine
-banner and VERSION in engine/engine.js, then rebuilds the template and examples. In
+banner and VERSION in engine/src/00-core.js, then rebuilds the template and examples. In
 CHANGELOG.md the [Unreleased] notes move under a new "## [X.Y.Z] - today" heading.
 Merging the result into main publishes the release (.github/workflows/release.yml).
 """
@@ -37,8 +37,8 @@ def main(argv):
     data = json.loads(plugin.read_text(encoding="utf-8"))
     data["version"] = v
     plugin.write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8")
-    sub("engine/engine.js", r"^/\*! unfold engine [\d.]+ \|", f"/*! unfold engine {v} |")
-    sub("engine/engine.js", r"^var VERSION='[\d.]+';", f"var VERSION='{v}';")
+    sub("engine/src/00-core.js", r"^/\*! unfold engine [\d.]+ \|", f"/*! unfold engine {v} |")
+    sub("engine/src/00-core.js", r"^var VERSION='[\d.]+';", f"var VERSION='{v}';")
     log = ROOT / "CHANGELOG.md"
     text = log.read_text(encoding="utf-8")
     if f"## [{v}]" not in text:

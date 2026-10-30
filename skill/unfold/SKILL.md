@@ -125,6 +125,7 @@ Read the outline as if you were the newcomer:
 - Can you explain the system from it?
 - Does every level answer in → process → out?
 - Is each child the right type?
+- Does every level pass `references/clean-layout.md`? (`check` warns about size, hubs and group size.)
 
 If browser automation such as Playwright is available, screenshot the overview and one inner level of each type, and fix overlaps or crossings.
 
@@ -151,6 +152,7 @@ To re-map after code changes, scan with `--changed-since <meta.repo.commit>`, up
 
 - `references/intents.md`: what each intent changes, and its follow-up questions.
 - `references/plan-mode.md`: no code yet: plan in conversation, draw the plan, build it, and keep the map current.
+- `references/clean-layout.md`: the rules for a clean diagram: size, groups, links per node, anchors, alignment.
 - `references/schema.md`: every field, level type, shape and colour.
 - `references/reading-code.md`: turning code into levels, with per-ecosystem patterns.
 - Don't change `assets/template.html` for one diagram. Engine changes belong in the repository, with tests.

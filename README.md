@@ -100,7 +100,7 @@ There are also **data models** (entities, keys and cardinality), **dependency gr
 ![A guided tour step spotlighting one part of the map](https://raw.githubusercontent.com/mahmoud-nasif/Unfold/main/docs/images/tour.png)
 
 - **Tours** lead from inputs to outputs across levels, spotlighting one part per step. The skill writes one for learning and demo maps and can end it with a question the reader answers by clicking a part. Maps without a written tour get a generated one.
-- **Presentation mode** (**P**) plays a tour full screen with the controls hidden. **N** opens speaker notes in a second window.
+- **Presentation mode** (**P**) plays a tour full screen with the controls hidden. **N** opens speaker notes in a second window. With `meta.presentStyle: "window"` the overview stays put under a dark scrim and each step opens the part it explains in a smaller window.
 - **Search** (**/**) finds parts by name, by a word in their notes, or by a file path, then opens the level that holds them.
 
 ### A real editor
@@ -108,7 +108,7 @@ There are also **data models** (entities, keys and cardinality), **dependency gr
 ![Editing a map: add shapes, link them, change their style, nest and tidy](https://raw.githubusercontent.com/mahmoud-nasif/Unfold/main/docs/images/edit.gif)
 
 - A palette of 19 shapes, including classes, people and servers. Drag a shape onto the canvas, or drop image and video files onto it (or paste a screenshot) and it becomes a part you can link.
-- **Auto-layout and routing.** Long edges get their own lanes, and edges route around the boxes in their way. Each level or edge can use curved, elbow or straight paths.
+- **Auto-layout and routing.** Long edges get their own lanes, and edges route around the boxes in their way. Paths are elbows by default; each level or edge can switch to curved or straight.
 - **Free links.** Select a link and drag its line to bend it anywhere, drag its label to move it (double-click to edit the text), and drag an end dot to another side of the box, or onto another box. **Ends** in the toolbar picks the sides by name.
 - **Tags.** Any number per part: Input and Output, suggested ones (planned, deprecated, external, hardware…) or your own.
 - **Linking.** Drag from a node's handle onto another node, or near it, to connect them. You can also press **Link** and click the target.
@@ -193,7 +193,7 @@ To check a map on every pull request:
 
 - The scanner works on patterns. It can miss dynamic wiring, such as dependency injection or topic names built at runtime, and it can report false positives. The agent confirms findings in the code, but review anything marked *inferred*.
 - Edges connect parts within one level. A link that crosses levels shows through the parent level's inputs and outputs.
-- Routing avoids boxes but not every crossing. On very dense levels, switch to elbow paths, tidy, or bend the busiest links by hand.
+- Routing avoids boxes but not every crossing. On very dense levels, tidy, or bend the busiest links by hand.
 - Published claude.ai pages block remote images and may block video embeds. Local media is embedded at build time, so prefer local files.
 
 ## Contributing

@@ -132,7 +132,24 @@ def test_esc_cancels_link_mode(mapped):
 # ---------- bend points and path styles ----------
 
 def select_edge(pg, i):
-    pg.evaluate("i => { const p = document.querySelector('#ss-scene .edge[data-i=\"' + i + '\"] .hit'); const L = p.getTotalLength(), q = p.getPointAtLength(L / 2); const m = p.getScreenCTM(); window.__pt = [q.x * m.a + m.e, q.y * m.d + m.f]; }", i)
+    """Select edge i. Links that share an end travel as one bundle, so a labelled edge is picked by its label
+    (which is its own), and any other by the point of its line farthest from the rest."""
+    lab = pg.locator(f'#ss-scene .edge[data-i="{i}"] .elabel')
+    if lab.count():
+        lab.click(position={"x": 20, "y": 2})  # the top of the label, clear of the line below it
+        pg.wait_for_timeout(200)
+        return
+    pg.evaluate("""i => {
+      const lines = [...document.querySelectorAll('#ss-scene .edge')].map(g => g.querySelector('.hit'));
+      const mine = lines.find(p => p.closest('.edge').dataset.i == i), L = mine.getTotalLength(), m = mine.getScreenCTM();
+      const others = lines.filter(p => p !== mine).map(p => { const n = p.getTotalLength(), s = []; for (let k = 0; k <= 120; k++) { const q = p.getPointAtLength(n * k / 120); s.push([q.x, q.y]); } return s; });
+      let pick = .5, far = -1;
+      for (let f = .1; f < .91; f += .05) {
+        const q = mine.getPointAtLength(L * f);
+        const d = Math.min(1e9, ...others.map(s => Math.min(...s.map(o => Math.hypot(o[0] - q.x, o[1] - q.y)))));
+        if (d > far) { far = d; pick = f; }
+      }
+      const q = mine.getPointAtLength(L * pick); window.__pt = [q.x * m.a + m.e, q.y * m.d + m.f]; }""", i)
     x, y = pg.evaluate("window.__pt")
     pg.mouse.click(x, y)
     pg.wait_for_timeout(200)
@@ -159,11 +176,11 @@ def test_drag_midpoint_adds_a_bend_point_that_persists(mapped):
 
 def test_edge_path_style_and_level_style(mapped):
     select_edge(mapped, 1)
-    mapped.click('[data-act="eroute"][data-arg="orthogonal"]')
-    assert data(mapped)["root"]["edges"][1]["route"] == "orthogonal"
+    mapped.click('[data-act="eroute"][data-arg="curved"]')
+    assert data(mapped)["root"]["edges"][1]["route"] == "curved"
     mapped.keyboard.press("Escape")
-    mapped.click('[data-act="lroute"]')
-    assert data(mapped)["root"].get("route") == "orthogonal"
+    mapped.click('[data-act="lroute"]')  # elbow is the default, so the next style is straight
+    assert data(mapped)["root"].get("route") == "straight"
 
 
 def test_tidy_resets_bend_points_and_offers_undo(mapped):
@@ -267,7 +284,9 @@ def test_media_popover_uploads_and_removes(mapped, tmp_path):
     assert "media" not in next(n for n in saved(mapped)["root"]["nodes"] if n["id"] == "peek")
 
 
-EDGES_ON_TOP_OF_EACH_OTHER = """() => {
+# Links that share a node travel as one bundle (one anchor, one trunk, branching near the targets), so only
+# links with no node in common count as lying on top of each other.
+EDGES_ON_TOP_OF_EACH_OTHER = """(ed) => {
   const edges = [...document.querySelectorAll('#ss-scene .edge')].map(g => {
     const p = g.querySelector('.line'), L = p.getTotalLength(), pts = [];
     for (let k = 0; k <= 60; k++) { const q = p.getPointAtLength(L * k / 60); pts.push([q.x, q.y]); }
@@ -275,6 +294,8 @@ EDGES_ON_TOP_OF_EACH_OTHER = """() => {
   });
   let pairs = 0;
   for (let i = 0; i < edges.length; i++) for (let j = i + 1; j < edges.length; j++) {
+    const a = ed[+document.querySelectorAll('#ss-scene .edge')[i].dataset.i], b = ed[+document.querySelectorAll('#ss-scene .edge')[j].dataset.i];
+    if (a.from === b.from || a.to === b.to || a.from === b.to || a.to === b.from) continue;
     let close = 0;
     for (let a = 4; a < 57; a++) if (edges[j].some(q => Math.hypot(q[0] - edges[i][a][0], q[1] - edges[i][a][1]) < 3)) close++;
     if (close >= 5) pairs++;
@@ -285,12 +306,12 @@ EDGES_ON_TOP_OF_EACH_OTHER = """() => {
 
 @pytest.mark.parametrize("fixture,most", [("pipeline", 0), ("services", 0), ("fan-in", 2)])
 def test_links_do_not_run_on_top_of_each_other(browser, tmp_path, fixture, most):
-    """Given links that share a node side, when routed, then they fan out instead of overlapping."""
+    """Given links with no node in common, when routed, then they never run on top of each other."""
     d = json.loads((FIXTURES / f"{fixture}.json").read_text())
     page = tmp_path / "p.html"
     page.write_text(story.embed(d, TEMPLATE_TEXT), encoding="utf-8")
     c, pg = open_page(browser, page.as_uri())
-    assert pg.evaluate(EDGES_ON_TOP_OF_EACH_OTHER) <= most
+    assert pg.evaluate(EDGES_ON_TOP_OF_EACH_OTHER, d["root"]["edges"]) <= most
     c.close()
 
 
@@ -298,5 +319,83 @@ def test_a_decision_fanning_out_to_five_branches_stays_apart(browser):
     c, pg = open_page(browser)
     pg.click('.node[data-id="claude"] .body')
     pg.wait_for_timeout(1700)
-    assert pg.evaluate(EDGES_ON_TOP_OF_EACH_OTHER) == 0
+    level = next(n for n in json.loads((ROOT / "examples" / "unfold" / "diagram.json").read_text())["root"]["nodes"] if n["id"] == "claude")
+    assert pg.evaluate(EDGES_ON_TOP_OF_EACH_OTHER, level["children"]["edges"]) == 0
+    c.close()
+
+
+# ---------- elbow by default, eight anchors, bundles (0.5.0) ----------
+
+def level_page(browser, tmp_path, level, name="lv.html"):
+    d = {"meta": {"title": "T"}, "root": level}
+    assert story.validate(d).ok, story.validate(d).errors
+    f = tmp_path / name
+    f.write_text(story.embed(d, TEMPLATE_TEXT), encoding="utf-8")
+    return open_page(browser, f.as_uri())
+
+
+TWO_BOXES = {"nodes": [{"id": "a", "label": "A"}, {"id": "b", "label": "B"}, {"id": "c", "label": "C"}],
+             "edges": [{"from": "a", "to": "b", "label": "x"}, {"from": "a", "to": "c", "label": "y"}]}
+
+
+def test_links_are_elbows_unless_told_otherwise(browser, tmp_path):
+    """Given a level with no route set, when drawn, then every link is straight runs with rounded corners (no cubic curve)."""
+    c, pg = level_page(browser, tmp_path, json.loads(json.dumps(TWO_BOXES)))
+    ds = pg.evaluate("[...document.querySelectorAll('#ss-scene .edge .line')].map(p => p.getAttribute('d'))")
+    assert ds and not any("C" in d for d in ds) and all(" L" in d or d.count("L") for d in ds)
+    c.close()
+
+
+def test_every_box_offers_eight_anchors(mapped):
+    """Given a box in edit mode, when it is hovered, then it shows eight anchors: four side middles and four corners."""
+    mapped.hover('.node[data-id="peek"] .body')
+    assert mapped.locator('.node[data-id="peek"] .port').count() == 8
+    assert sorted(mapped.eval_on_selector_all('.node[data-id="peek"] .port', "els => els.map(e => e.dataset.port)")) == sorted(["t", "tr", "r", "br", "b", "bl", "l", "tl"])
+
+
+def test_a_link_pinned_to_a_corner_arrives_facing_the_way_it_goes(browser, tmp_path):
+    """Given a link pinned to a corner anchor, when drawn, then it ends on that corner, on a straight final leg."""
+    lv = json.loads(json.dumps(TWO_BOXES))
+    lv["edges"] = [{"from": "a", "to": "b", "toSide": "tl"}]
+    c, pg = level_page(browser, tmp_path, lv)
+    r = pg.evaluate("""() => {
+      const p = document.querySelector('#ss-scene .edge .line'), L = p.getTotalLength(), e = p.getPointAtLength(L), q = p.getPointAtLength(L - 6);
+      const b = document.querySelector('#ss-scene .node[data-id="b"] .body').getBoundingClientRect(), m = p.getScreenCTM();
+      const ex = e.x * m.a + m.e, ey = e.y * m.d + m.f;
+      return {dx: Math.abs(e.x - q.x), dy: Math.abs(e.y - q.y), left: ex - b.left, top: ey - b.top, w: b.width, h: b.height};
+    }""")
+    assert min(r["dx"], r["dy"]) < .5                      # the last leg is horizontal or vertical
+    assert r["left"] < r["w"] * .35 and r["top"] < r["h"] * .35   # and it lands in the top-left of the box
+    c.close()
+
+
+def test_links_leaving_one_box_share_its_anchor_and_trunk(browser, tmp_path):
+    """Given two elbow links from the same box and side, when drawn, then they leave from the same point."""
+    c, pg = level_page(browser, tmp_path, json.loads(json.dumps(TWO_BOXES)))
+    starts = pg.evaluate("[...document.querySelectorAll('#ss-scene .edge .line')].map(p => { const q = p.getPointAtLength(0); return [Math.round(q.x), Math.round(q.y)]; })")
+    assert starts[0] == starts[1]
+    c.close()
+
+
+def test_two_bundled_labels_do_not_sit_on_each_other(browser, tmp_path):
+    """Given two links that share a trunk, when drawn, then their labels are not stacked."""
+    c, pg = level_page(browser, tmp_path, json.loads(json.dumps(TWO_BOXES)))
+    bs = pg.evaluate("[...document.querySelectorAll('#ss-scene .edge .elabel')].map(g => { const r = g.getBoundingClientRect(); return {x: r.x, y: r.y, w: r.width, h: r.height}; })")
+    assert len(bs) == 2 and not overlaps({"x": bs[0]["x"], "y": bs[0]["y"], "width": bs[0]["w"], "height": bs[0]["h"]}, {"x": bs[1]["x"], "y": bs[1]["y"], "width": bs[1]["w"], "height": bs[1]["h"]})
+    c.close()
+
+
+def test_an_attached_picture_shows_its_name_only_on_hover(browser, tmp_path):
+    """Given a node with a picture, when the pointer is away, then its name is hidden; over it, the name shows."""
+    uri = "data:image/png;base64," + base64.b64encode(PNG).decode()
+    lv = {"nodes": [{"id": "shot", "label": "Screenshot name", "shape": "image", "media": {"src": uri}, "x": 0, "y": 0, "w": 260, "h": 200}, {"id": "o", "label": "Other", "x": 400, "y": 0}], "edges": []}
+    c, pg = level_page(browser, tmp_path, lv)
+    cap = '#ss-scene .node[data-id="shot"] .img-cap'
+    pg.mouse.move(5, 400)
+    pg.wait_for_timeout(300)
+    assert float(pg.eval_on_selector(cap, "e => getComputedStyle(e).opacity")) < .05
+    pg.hover('#ss-scene .node[data-id="shot"] .body')
+    pg.wait_for_timeout(350)
+    assert float(pg.eval_on_selector(cap, "e => getComputedStyle(e).opacity")) > .95
+    assert pg.eval_on_selector(cap, "e => e.textContent").strip() == "Screenshot name"
     c.close()

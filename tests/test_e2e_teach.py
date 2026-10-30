@@ -178,3 +178,28 @@ def test_map_diff_marks_added_removed_and_changed(browser, tmp_path):
     assert pg.locator("#ss-scene .edge.diff-added").count() == 1
     assert "New" in pg.locator("#ss-levelbar").inner_text()
     c.close()
+
+
+# ---------- presentation in a window (presentStyle "window") ----------
+
+def test_window_presentation_keeps_the_overview_and_opens_the_part_in_a_window(browser, tmp_path):
+    """Given presentStyle window, when I present and step to a part with an inner diagram, then the overview stays
+    on screen under a dark scrim and a smaller window shows that part."""
+    d = json.loads(json.dumps(EXAMPLE))
+    d["meta"]["presentStyle"] = "window"
+    d["meta"]["tours"] = [{"title": "T", "steps": [{"path": [], "title": "Overview"}, {"path": ["claude"], "title": "Inside Claude"}]}]
+    c, pg = page_for(browser, tmp_path, d)
+    pg.keyboard.press("p")
+    pg.wait_for_timeout(1500)
+    assert pg.locator("#ss-pwin").is_hidden()          # the first step is just the overview
+    pg.keyboard.press("ArrowRight")
+    pg.wait_for_timeout(1500)
+    assert pg.locator("#ss-pwin").is_visible() and "Claude" in pg.inner_text("#ss-pwin .pw-head")
+    assert pg.locator("#ss-pwin svg .node").count() >= 3                   # the inner diagram is drawn in the window
+    assert pg.evaluate("document.querySelector('#ss-crumbs').hidden") is True   # and the map never left the overview
+    assert float(pg.eval_on_selector("#ss-pscrim", "e => getComputedStyle(e).opacity")) > .95
+    pg.keyboard.press("Escape")
+    pg.wait_for_timeout(600)
+    assert pg.locator("#ss-pwin").is_hidden()
+    assert not [e for e in pg.errors if "Failed to load resource" not in e]
+    c.close()

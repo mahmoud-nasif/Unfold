@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
-"""Assemble skill/unfold/assets/template.html from engine/engine.css, engine.js, icons.js and sample.json.
+"""Assemble skill/unfold/assets/template.html from engine/engine.css, engine/src/*.js, icons.js and sample.json.
+
+The script is split by concern into engine/src/NN-name.js and joined in filename order.
 
     python engine/assemble.py          # write the template
     python engine/assemble.py --check  # exit 1 if the committed template is out of date
@@ -16,18 +18,25 @@ FONTS = ('<link rel="preconnect" href="https://fonts.googleapis.com">\n'
          '&family=Hanken+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">\n')
 
 
+# Shown only while the script has not run: in a viewer that blocks inline scripts (some editor previews do),
+# the page explains itself instead of staying blank. The engine replaces it at start-up.
+NOSCRIPT = ('<div class="nojs"><h1>This diagram needs scripts</h1>'
+            '<p>This viewer blocks the scripts the page runs on. Open the file in a web browser instead, '
+            'or in VS Code with <b>Live Preview</b> or <b>Simple Browser</b>.</p></div>')
+
+
 def assemble():
-    js = (HERE / "engine.js").read_text(encoding="utf-8")
+    js = "".join(f.read_text(encoding="utf-8") for f in sorted((HERE / "src").glob("*.js")))
     js = js.replace("//@@ICONS@@", (HERE / "icons.js").read_text(encoding="utf-8").rstrip("\n"))
     if "</script" in js:
-        raise SystemExit("engine.js must not contain a literal closing script tag; write <\\/script>")
+        raise SystemExit("engine/src must not contain a literal closing script tag; write <\\/script>")
     css = (HERE / "engine.css").read_text(encoding="utf-8")
     sample = json.loads((HERE / "sample.json").read_text(encoding="utf-8"))
     data = json.dumps(sample, separators=(",", ":"), ensure_ascii=False).replace("<", "\\u003c")
     return ('<!doctype html>\n<html lang="en">\n<head>\n<meta charset="utf-8">\n'
             '<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">\n'
             '<title>Unfold</title>\n' + FONTS +
-            '<style id="ss-css">\n' + css + '</style>\n</head>\n<body>\n<div id="app"></div>\n'
+            '<style id="ss-css">\n' + css + '</style>\n</head>\n<body>\n<div id="app">' + NOSCRIPT + '</div>\n'
             '<script type="application/json" id="story-data">' + data + '</script>\n'
             '<script id="ss-engine">\n' + js + '</script>\n</body>\n</html>\n')
 
