@@ -244,7 +244,7 @@ def test_planned_parts_are_dashed_and_counted(browser, tmp_path):
     out.write_text(story.embed(d, (ROOT / "skill" / "unfold" / "assets" / "template.html").read_text()), encoding="utf-8")
     c, pg = open_page(browser, out.as_uri())
     assert pg.locator(f'.node.planned[data-id="{d["root"]["nodes"][2]["id"]}"]').count() == 1
-    assert "1 planned" in pg.locator("#ss-levelbar").inner_text()
+    assert "1 planned" in pg.locator("#ss-levelinfo").inner_text()
     c.close()
 
 

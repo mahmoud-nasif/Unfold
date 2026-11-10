@@ -190,6 +190,8 @@ function mermaidAll(from){
 
 /* ---- draw.io: one page per level, and inner diagrams link to their page ---- */
 function hexOf(c,fallback){var v=getComputedStyle(document.body).getPropertyValue('--c-'+(COLORS.indexOf(c)>=0?c:'blue')).trim();if(/^#[0-9a-f]{3,8}$/i.test(c||''))v=c;return /^#[0-9a-f]{6}$/i.test(v)?v:(fallback||'#3B5BDB');}
+// the solid-fill text colour as a plain hex, for exports that cannot read CSS variables
+function onHex(c){var v=onVar(c);return v.charAt(0)==='#'?v:(getComputedStyle(document.body).getPropertyValue('--on-solid').trim()||'#FFFFFF');}
 function tint(hex,k){var n=parseInt(hex.slice(1),16),r=n>>16,g=(n>>8)&255,b=n&255;function m(v){return Math.round(v+(255-v)*k);}return '#'+((1<<24)+(m(r)<<16)+(m(g)<<8)+m(b)).toString(16).slice(1);}
 var DIO_SHAPE={rounded:'rounded=1;arcSize=12;',rect:'rounded=0;',pill:'rounded=1;arcSize=50;',diamond:'rhombus;',parallelogram:'shape=parallelogram;perimeter=parallelogramPerimeter;',cylinder:'shape=cylinder3;boundedLbl=1;size=10;',document:'shape=document;boundedLbl=1;',hexagon:'shape=hexagon;perimeter=hexagonPerimeter2;',cloud:'ellipse;shape=cloud;',circle:'ellipse;',triangle:'triangle;direction=north;',text:'text;strokeColor=none;fillColor=none;',table:'swimlane;fontStyle=1;startSize=30;',image:'rounded=1;',initial:'ellipse;fillColor=#333333;',final:'ellipse;shape=doubleEllipse;',class:'swimlane;fontStyle=1;startSize=30;',person:'shape=umlActor;verticalLabelPosition=bottom;verticalAlign=top;',node3d:'shape=cube;size=12;boundedLbl=1;'};
 function xmlEsc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/\n/g,'&#10;');}
@@ -198,7 +200,7 @@ function drawioAll(){
   var pages=lv.map(function(v){
     var l=v.l,cells=['<mxCell id="0"/>','<mxCell id="1" parent="0"/>'],k=0;
     l.nodes.forEach(function(n){
-      var c=hexOf(n.color),w=nw(n),h=nh(n),st=(DIO_SHAPE[n.shape]||DIO_SHAPE.rounded)+'whiteSpace=wrap;html=1;strokeColor='+c+';'+(n.shape==='text'?'':'fillColor='+tint(c,.86)+';')+(n.style==='dashed'?'dashed=1;':'');
+      var c=hexOf(n.color),w=nw(n),h=nh(n),st=(DIO_SHAPE[n.shape]||DIO_SHAPE.rounded)+'whiteSpace=wrap;html=1;strokeColor='+c+';'+(n.shape==='text'?'':'fillColor='+(n.fill==='solid'?c+';fontColor='+onHex(n.color):tint(c,.86))+';')+(n.style==='dashed'?'dashed=1;':'');
       var lab=n.label+((n.fields||[]).length||(n.methods||[]).length?'':'')+(n.tech?'\n['+n.tech+']':'');
       var inner=hasInner(n)?' link="data:page/id,'+pid[v.path.concat([n.id]).join('/')]+'"':'';
       if(inner)st+='fontStyle=1;';
@@ -227,9 +229,9 @@ function excalidrawLevel(l){
   l.nodes.forEach(function(n){
     var w=nw(n),h=nh(n),c=hexOf(n.color),type=n.shape==='diamond'?'diamond':(n.shape==='circle'||n.shape==='initial'||n.shape==='final')?'ellipse':'rectangle',id='n_'+n.id,tid='t_'+n.id;
     var rows=(n.fields||[]).concat(n.methods||[]),txt=n.label+(n.tech?'\n['+n.tech+']':'')+(rows.length?'\n'+rows.join('\n'):'');
-    var el=base({id:id,type:type,x:n.x-w/2,y:n.y-h/2,width:w,height:h,strokeColor:c,backgroundColor:n.shape==='text'?'transparent':tint(c,.86),roundness:/rounded|pill|cloud|person/.test(n.shape)?{type:3}:null,boundElements:[{type:'text',id:tid}],strokeStyle:n.shape==='text'?'dotted':'solid'});
+    var el=base({id:id,type:type,x:n.x-w/2,y:n.y-h/2,width:w,height:h,strokeColor:c,backgroundColor:n.shape==='text'?'transparent':(n.fill==='solid'?c:tint(c,.86)),roundness:/rounded|pill|cloud|person/.test(n.shape)?{type:3}:null,boundElements:[{type:'text',id:tid}],strokeStyle:n.shape==='text'?'dotted':'solid'});
     els.push(el);byId[n.id]=el;
-    els.push(base({id:tid,type:'text',x:n.x-w/2+8,y:n.y-10,width:w-16,height:20,text:txt,originalText:txt,fontSize:16,fontFamily:1,textAlign:'center',verticalAlign:'middle',containerId:id,lineHeight:1.25,autoResize:true}));
+    els.push(base({id:tid,type:'text',x:n.x-w/2+8,y:n.y-10,width:w-16,height:20,text:txt,originalText:txt,fontSize:16,fontFamily:1,strokeColor:n.fill==='solid'?onHex(n.color):'#1e1e1e',textAlign:'center',verticalAlign:'middle',containerId:id,lineHeight:1.25,autoResize:true}));
   });
   l.edges.forEach(function(e,i){
     var a=byId[e.from],b=byId[e.to];if(!a||!b||a===b)return;

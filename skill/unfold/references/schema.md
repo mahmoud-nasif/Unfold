@@ -71,6 +71,7 @@ The root is a level, and so is every node's `children`.
 | `shape`    | string   | See [Shapes](#shapes). Defaults to `rounded` in architecture levels and `rect` in process levels. |
 | `role`     | string   | `input` or `output` *for this level*. Draws a badge and halo, and appears in the legend. |
 | `color`    | string   | See [Colours and icons](#colours-and-icons). Defaults to blue. |
+| `fill`     | string   | `tint` (default): a light wash of the colour. `solid`: the shape is filled with exactly that colour, and its label and icon switch to white or near-black, whichever reads better. |
 | `icon`     | string   | An icon name, or an emoji or 1 to 3 letters. Drawn above the label when the node is at least 88 units tall (not on diamonds or triangles). |
 | `source`   | string[] | Where it lives in code: `path/to/file.py`, `file.py:Class.method`, `file.py:42`, `file.py:10-30`, `pkg/module`. See [Source references](#source-references). Shown in the node's detail card. |
 | `note`     | string   | 1 to 3 sentences shown when someone clicks the node. |
@@ -144,7 +145,7 @@ The region is computed from the members' positions. Auto-layout gives each group
 
 ## Colours and icons
 
-Colours: `blue`, `teal`, `amber`, `rose`, `violet`, `slate`, `neutral`, or a hex value such as `#2B7A4B`. Hex values do not adapt to dark mode, so prefer the names. A sensible default mapping:
+Colours: `blue`, `teal`, `green`, `amber`, `orange`, `red`, `rose`, `violet`, `slate`, `neutral`, or a hex value such as `#2B7A4B`. Hex values do not adapt to dark mode, so prefer the names. By default a node is a light tint of its colour; set `"fill": "solid"` to paint it in the exact colour. A sensible default mapping:
 
 | Colour  | Use for |
 |---------|---------|
@@ -153,6 +154,7 @@ Colours: `blue`, `teal`, `amber`, `rose`, `violet`, `slate`, `neutral`, or a hex
 | amber   | Decisions, hardware, runtime |
 | rose    | Interfaces: APIs, UIs, protocols |
 | violet  | Intelligence: planning, ML, inference |
+| green, orange, red | Status: good, attention, problem (e.g. review or audit maps) |
 | slate   | External things |
 | neutral | Annotations |
 

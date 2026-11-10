@@ -1,7 +1,7 @@
 /* ================= state ================= */
 var data,originalJSON,draftKey;
 var path=[],cam={x:0,y:0,w:1000,h:600};
-var mode='view';
+var mode='view',theme='auto';
 var sel={nodes:[],edge:null,group:null};
 var pop=null,detailId=null,traceId=null;
 var busy=false,dirty=false,spaceDown=false;

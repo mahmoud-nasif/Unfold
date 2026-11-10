@@ -5,7 +5,7 @@ function boot(){
     '<defs><marker id="ss-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="arrowhead" d="M0 1 10 5 0 9z"/></marker>'+
     '<marker id="ss-arrow-sel" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="arrowhead sel" d="M0 1 10 5 0 9z"/></marker>'+relMarkers()+'</defs>'+
     '<g id="ss-scene"></g></svg><div class="empty-hint" id="ss-empty" hidden></div></div>'+
-    '<header class="hud-top"><div class="titleblock"><h1 id="ss-title" spellcheck="false"></h1><p id="ss-subtitle" data-ph="Add a subtitle"></p><nav class="crumbs" id="ss-crumbs" aria-label="Where you are" hidden></nav></div><div class="topbar bar" id="ss-topbar"></div></header>'+
+    '<header class="hud-top"><div class="titleblock"><h1 id="ss-title" spellcheck="false"></h1><p id="ss-subtitle" data-ph="Add a subtitle"></p><nav class="crumbs" id="ss-crumbs" aria-label="Where you are" hidden></nav><div class="lvl-info" id="ss-levelinfo" hidden></div></div><div class="topbar bar" id="ss-topbar"></div></header>'+
     '<div class="palette bar" id="ss-palette" hidden></div>'+
     
     '<div class="levelbar bar" id="ss-levelbar" hidden></div>'+
@@ -16,6 +16,8 @@ function boot(){
     '<div class="search" id="ss-search" role="dialog" aria-label="Search" hidden></div><div class="pscrim" id="ss-pscrim"></div><section class="pwin" id="ss-pwin" aria-label="Detail" hidden></section><section class="tourbar" id="ss-tour" aria-label="Tour" aria-live="polite" hidden></section>'+
     '<div class="toast" id="ss-toast" role="status" hidden></div><div class="modal" id="ss-modal" hidden></div>';
   svg=$('#ss-canvas');scene=$('#ss-scene');
+  var savedTheme=null;try{savedTheme=localStorage.getItem(THEME_KEY);}catch(e){}
+  if(savedTheme)setTheme(savedTheme);else theme=THEMES.indexOf(document.documentElement.getAttribute('data-theme'))>=0?document.documentElement.getAttribute('data-theme'):'auto';
   var raw=document.getElementById('story-data').textContent;
   try{data=normalize(JSON.parse(raw));}
   catch(err){app.innerHTML='<div class="fatal"><p>The diagram data could not be read: '+esc(err.message)+'</p></div>';return;}
