@@ -111,6 +111,7 @@ def test_self_edge_is_an_error(d):
     ("shape", "star", "unknown shape"),
     ("color", "magenta", "colour must be"),
     ("fill", "gradient", "fill must be"),
+    ("stroke", "chartreuse", "stroke must be"),
     ("role", "sink", "role must be"),
     ("source", "svc.py", "'source' must be a list"),
     ("text", {"size": "xl"}, "text.size"),
@@ -126,6 +127,12 @@ def test_invalid_node_fields(d, field, value, needle):
 
 def test_hex_colour_is_accepted(d):
     d["root"]["nodes"][2]["color"] = "#2B7A4B"
+    assert errs(d) == []
+
+
+@pytest.mark.parametrize("stroke", ["ink", "red", "#112233"])
+def test_outline_colours_are_accepted(d, stroke):
+    d["root"]["nodes"][2]["stroke"] = stroke
     assert errs(d) == []
 
 

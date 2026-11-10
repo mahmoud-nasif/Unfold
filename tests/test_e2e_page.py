@@ -459,3 +459,21 @@ def test_theme_button_cycles_auto_light_dark_and_is_remembered(browser):
     pg.click('[data-act="theme"]'); assert root_theme() is None
     assert pg.errors == []
     c.close()
+
+
+def test_solid_fill_gets_an_ink_outline_and_the_outline_can_be_chosen(editor):
+    # Given a node with a solid fill, when no outline is set, then its outline is the ink colour, not the fill colour
+    editor.click('.node[data-id="db"]')
+    editor.click('[data-act="pop"][data-arg="color"]')
+    editor.click('[data-act="set-fill"][data-arg="solid"]')
+    sh = '.node[data-id="db"] .body .sh'
+    stroke = lambda: editor.eval_on_selector(sh, "e => getComputedStyle(e).stroke")
+    assert stroke() == resolved(editor, "var(--ink)")
+    # When the outline is set to amber, then it is amber and the data records it
+    editor.click('[data-act="set-stroke"][data-arg="amber"]')
+    assert stroke() == resolved(editor, "var(--c-amber)")
+    db = next(n for n in data(editor)["root"]["nodes"] if n["id"] == "db")
+    assert db["stroke"] == "amber"
+    # When set back to automatic, then the field is removed
+    editor.click('[data-act="set-stroke"][data-arg="auto"]')
+    assert "stroke" not in next(n for n in data(editor)["root"]["nodes"] if n["id"] == "db")

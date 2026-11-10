@@ -53,8 +53,8 @@ button{font:inherit;color:inherit}
 .node{cursor:pointer;outline:none}
 .node.has-inner{cursor:zoom-in}
 .editing .node{cursor:move}
-.node .sh{fill:color-mix(in srgb,var(--nc) 9%,var(--surface));stroke:var(--nc);stroke-width:1.6;stroke-linejoin:round;transition:stroke-width .12s}
-.node .sh-top{fill:color-mix(in srgb,var(--nc) 20%,var(--surface));stroke:var(--nc);stroke-width:1.6}
+.node .sh{fill:color-mix(in srgb,var(--nc) 9%,var(--surface));stroke:var(--ns,var(--nc));stroke-width:1.6;stroke-linejoin:round;transition:stroke-width .12s}
+.node .sh-top{fill:color-mix(in srgb,var(--nc) 20%,var(--surface));stroke:var(--ns,var(--nc));stroke-width:1.6}
 .node .stack .sh,.node .stack .sh-top{fill:var(--surface);stroke-opacity:.45;stroke-width:1.2}
 .node .sh-hit{fill:transparent;stroke:none}
 .node.solid .body .sh{fill:var(--nc)}
@@ -466,6 +466,8 @@ body.has-pwin .pscrim{opacity:1}
 .pwin .pw-note{margin:auto;padding:24px;max-width:560px;text-align:center}.pwin .pw-note img{max-width:100%;max-height:36vh;border-radius:10px}.pwin .pw-note p{font-size:18px;line-height:1.5}
 body.presenting.has-pwin .tourbar{z-index:9}
 .pop-fill{display:flex;width:100%;margin-top:8px}
+.pop-h{font-size:12px;font-weight:600;color:var(--muted);margin:8px 2px 4px}
+.ring-sw{background:transparent!important;box-shadow:inset 0 0 0 3px var(--nc)!important;display:grid;place-items:center;font-size:10px;font-weight:700;color:var(--muted);font-style:normal}
 .pop-fill button{flex:1;padding:5px 8px;font-size:13px}
 </style>
 </head>
@@ -586,6 +588,8 @@ var REL={inherits:{st:'solid',end:'tri'},implements:{st:'dashed',end:'tri'},comp
 var SEQ={gap:70,first:84,step:54};
 var COLORS=['blue','teal','green','amber','orange','red','rose','violet','slate','neutral'];
 var FILLS=['tint','solid'];
+// outline: a palette colour, a hex value, or 'ink' (black in light theme, near-white in dark); solid fills default to ink
+var STROKE_SPECIAL=['ink'];
 var THEMES=['auto','light','dark'],THEME_NAMES={auto:'Theme: follows the system',light:'Theme: light',dark:'Theme: dark'};
 var KIND_TO_COLOR={core:'blue',data:'teal',infra:'amber',interface:'rose',external:'slate'};
 var FS={s:12.5,m:14.5,l:18};
@@ -601,6 +605,7 @@ function shapes(spec){
 }
 // Text colour on a solid fill: named colours use the theme's --on-solid; a hex colour gets white or near-black by luminance
 function onVar(c){if(/^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(c||'')){var h=c.length===4?c.replace(/[0-9a-f]/gi,'$&$&').slice(1):c.slice(1),v=parseInt(h,16);function ch(x){x/=255;return x<=.03928?x/12.92:Math.pow((x+.055)/1.055,2.4);}var L=.2126*ch(v>>16)+.7152*ch((v>>8)&255)+.0722*ch(v&255);return L>.2?'#121923':'#FFFFFF';}return 'var(--on-solid)';}
+function strokeVar(n){var s=n.stroke;if(s==='ink')return 'var(--ink)';if(s&&(COLORS.indexOf(s)>=0||/^#[0-9a-f]{3,8}$/i.test(s)))return colorVar(s);return n.fill==='solid'?'var(--ink)':'';}
 function uiIcon(name,size){size=size||18;var spec=UI[name]||ICONS[name];return '<svg class="ui-i" viewBox="0 0 24 24" width="'+size+'" height="'+size+'" aria-hidden="true">'+(spec?shapes(spec):'')+'</svg>';}
 function shapeIcon(shape,size){
   size=size||26;var n={shape:shape,w:SHAPES[shape].w,h:SHAPES[shape].h};
@@ -1359,7 +1364,7 @@ function nodeMarkup(n,l){
   var inner=showsInner(n),w=nw(n),h=nh(n),X=-w/2,Y=-h/2;
   var isSel=sel.nodes.indexOf(n.id)>=0;
   var cls='node t-'+n.shape+(inner?' has-inner':'')+(isSel?' sel':'')+(n.role?' role-'+n.role:'')+(DIFF_TEXT[n.diff]?' diff-'+n.diff:'')+(n.confidence==='inferred'?' inferred':'')+(isPlanned(n)?' planned':'')+(n.fill==='solid'?' solid':'');
-  var s='<g class="'+cls+'" data-id="'+esc(n.id)+'" transform="translate('+n.x+' '+n.y+')" style="--nc:'+colorVar(n.color)+';--rc:'+roleVar(n.role)+(n.fill==='solid'?';--on:'+onVar(n.color):'')+'" tabindex="0" role="button" aria-label="'+esc(n.label)+(n.role?', '+n.role:'')+(inner?', has inner diagram':'')+'">';
+  var s='<g class="'+cls+'" data-id="'+esc(n.id)+'" transform="translate('+n.x+' '+n.y+')" style="--nc:'+colorVar(n.color)+';--rc:'+roleVar(n.role)+(n.fill==='solid'?';--on:'+onVar(n.color):'')+(strokeVar(n)?';--ns:'+strokeVar(n):'')+'" tabindex="0" role="button" aria-label="'+esc(n.label)+(n.role?', '+n.role:'')+(inner?', has inner diagram':'')+'">';
   if(n.role&&n.shape!=='text')s+='<g class="ring">'+shapeSVG(n)+'</g>';
   if(inner&&n.shape!=='text')s+='<g class="stack" transform="translate(6 6)">'+shapeSVG(n)+'</g>';
   s+='<g class="body">'+shapeSVG(n)+'</g>';
@@ -1682,7 +1687,7 @@ function renderToolbar(){
       '<button class="ib" data-act="dup" title="Duplicate (Ctrl+D)" aria-label="Duplicate">'+uiIcon('copy')+'</button>'+
       '<button class="ib tb-danger" data-act="del" title="Delete (Del)" aria-label="Delete">'+uiIcon('trash')+'</button>';
     if(pop==='shape')p=popGrid(SHAPE_ORDER.map(function(s){return '<button data-act="set-shape" data-arg="'+s+'" title="'+SHAPES[s].name+'" aria-pressed="'+(n.shape===s)+'" style="width:40px;height:38px">'+shapeIcon(s,26)+'</button>';}).join(''),6,40);
-    if(pop==='color')p=colorPop(n.color,n.fill||'tint');
+    if(pop==='color')p=colorPop(n.color,n.fill||'tint',n.stroke);
     if(pop==='icon')p=popGrid('<button data-act="set-icon" data-arg="" title="No icon" style="width:30px;height:30px" aria-pressed="'+(!n.icon)+'">\u2205</button>'+Object.keys(ICONS).map(function(k){return '<button data-act="set-icon" data-arg="'+k+'" title="'+k+'" aria-pressed="'+(n.icon===k)+'" style="width:30px;height:30px">'+uiIcon(k,18)+'</button>';}).join(''),8,30)+
       '<label style="margin:8px 0 0">Or an emoji / letters<input data-field="icon" value="'+esc(n.icon&&!ICONS[n.icon]?n.icon:'')+'" maxlength="4"></label>';
     if(pop==='size')p='<div class="seg" role="group" aria-label="Text size">'+['s','m','l'].map(function(z){return '<button data-act="set-size" data-arg="'+z+'" aria-pressed="'+((tx.size||'m')===z)+'">'+{s:'Small',m:'Medium',l:'Large'}[z]+'</button>';}).join('')+'</div>';
@@ -1768,10 +1773,11 @@ function renderToolbar(){
   t.hidden=false;
   placeOverlays();
 }
-function colorPop(cur,fill){
+function colorPop(cur,fill,stroke){
   var g=popGrid(COLORS.map(function(c){return '<button data-act="set-color" data-arg="'+c+'" title="'+c+'" aria-label="'+c+'" aria-pressed="'+(cur===c)+'" style="width:32px;height:32px"><i class="swatch" style="--nc:var(--c-'+c+');width:20px;height:20px"></i></button>';}).join(''),5,32);
   if(fill===undefined)return g;
-  return g+'<div class="seg pop-fill" role="group" aria-label="Fill">'+FILLS.map(function(f){return '<button data-act="set-fill" data-arg="'+f+'" aria-pressed="'+((fill||'tint')===f)+'" title="'+(f==='solid'?'Fill the shape with the exact colour':'Light tint of the colour')+'">'+(f==='solid'?'Solid':'Tint')+'</button>';}).join('')+'</div>';
+  var outline='<div class="pop-h">Outline</div>'+popGrid(['auto','ink'].concat(COLORS).map(function(c){var on=(stroke||'auto')===c,sw=c==='auto'?'var(--c-'+(COLORS.indexOf(cur)>=0?cur:'blue')+')':c==='ink'?'var(--ink)':'var(--c-'+c+')';return '<button data-act="set-stroke" data-arg="'+c+'" title="Outline: '+(c==='auto'?'automatic (colour for tint, ink for solid)':c)+'" aria-label="Outline '+c+'" aria-pressed="'+on+'" style="width:32px;height:32px"><i class="swatch ring-sw" style="--nc:'+sw+';width:20px;height:20px">'+(c==='auto'?'A':'')+'</i></button>';}).join(''),6,32);
+  return g+outline+'<div class="seg pop-fill" role="group" aria-label="Fill">'+FILLS.map(function(f){return '<button data-act="set-fill" data-arg="'+f+'" aria-pressed="'+((fill||'tint')===f)+'" title="'+(f==='solid'?'Fill the shape with the exact colour':'Light tint of the colour')+'">'+(f==='solid'?'Solid':'Tint')+'</button>';}).join('')+'</div>';
 }
 function selBox(){
   var l=cur();
@@ -2534,6 +2540,7 @@ function onClick(e){
       if(sel.group){var g=l.groups.find(function(x){return x.id===sel.group;});if(g)g.color=arg;}
       else sel.nodes.forEach(function(id){var n=findNode(id);if(n)n.color=arg;});pop=null;});break;
     case 'set-fill':commit(function(){sel.nodes.forEach(function(id){var n=findNode(id);if(!n)return;if(arg==='solid')n.fill='solid';else delete n.fill;});});break;
+    case 'set-stroke':commit(function(){sel.nodes.forEach(function(id){var n=findNode(id);if(!n)return;if(arg==='auto')delete n.stroke;else n.stroke=arg;});});break;
     case 'theme':setTheme(THEMES[(THEMES.indexOf(theme)+1)%THEMES.length]);renderHeader();break;
     case 'set-icon':if(one)commit(function(){if(arg)one.icon=arg;else delete one.icon;pop=null;});break;
     case 'set-size':if(one)commit(function(){one.text=Object.assign({},one.text||{},{size:arg});if(arg==='m')delete one.text.size;if(!Object.keys(one.text).length)delete one.text;pop=null;});break;
@@ -3074,6 +3081,8 @@ function mermaidAll(from){
 /* ---- draw.io: one page per level, and inner diagrams link to their page ---- */
 function hexOf(c,fallback){var v=getComputedStyle(document.body).getPropertyValue('--c-'+(COLORS.indexOf(c)>=0?c:'blue')).trim();if(/^#[0-9a-f]{3,8}$/i.test(c||''))v=c;return /^#[0-9a-f]{6}$/i.test(v)?v:(fallback||'#3B5BDB');}
 // the solid-fill text colour as a plain hex, for exports that cannot read CSS variables
+// the outline as a plain hex for exports
+function strokeHex(n,c){var v=strokeVar(n);if(!v)return c;if(v.charAt(0)==='#')return v;var m=/^var\(--([a-z-]+)\)$/.exec(v);return (m&&getComputedStyle(document.body).getPropertyValue('--'+m[1]).trim())||c;}
 function onHex(c){var v=onVar(c);return v.charAt(0)==='#'?v:(getComputedStyle(document.body).getPropertyValue('--on-solid').trim()||'#FFFFFF');}
 function tint(hex,k){var n=parseInt(hex.slice(1),16),r=n>>16,g=(n>>8)&255,b=n&255;function m(v){return Math.round(v+(255-v)*k);}return '#'+((1<<24)+(m(r)<<16)+(m(g)<<8)+m(b)).toString(16).slice(1);}
 var DIO_SHAPE={rounded:'rounded=1;arcSize=12;',rect:'rounded=0;',pill:'rounded=1;arcSize=50;',diamond:'rhombus;',parallelogram:'shape=parallelogram;perimeter=parallelogramPerimeter;',cylinder:'shape=cylinder3;boundedLbl=1;size=10;',document:'shape=document;boundedLbl=1;',hexagon:'shape=hexagon;perimeter=hexagonPerimeter2;',cloud:'ellipse;shape=cloud;',circle:'ellipse;',triangle:'triangle;direction=north;',text:'text;strokeColor=none;fillColor=none;',table:'swimlane;fontStyle=1;startSize=30;',image:'rounded=1;',initial:'ellipse;fillColor=#333333;',final:'ellipse;shape=doubleEllipse;',class:'swimlane;fontStyle=1;startSize=30;',person:'shape=umlActor;verticalLabelPosition=bottom;verticalAlign=top;',node3d:'shape=cube;size=12;boundedLbl=1;'};
@@ -3083,7 +3092,7 @@ function drawioAll(){
   var pages=lv.map(function(v){
     var l=v.l,cells=['<mxCell id="0"/>','<mxCell id="1" parent="0"/>'],k=0;
     l.nodes.forEach(function(n){
-      var c=hexOf(n.color),w=nw(n),h=nh(n),st=(DIO_SHAPE[n.shape]||DIO_SHAPE.rounded)+'whiteSpace=wrap;html=1;strokeColor='+c+';'+(n.shape==='text'?'':'fillColor='+(n.fill==='solid'?c+';fontColor='+onHex(n.color):tint(c,.86))+';')+(n.style==='dashed'?'dashed=1;':'');
+      var c=hexOf(n.color),w=nw(n),h=nh(n),st=(DIO_SHAPE[n.shape]||DIO_SHAPE.rounded)+'whiteSpace=wrap;html=1;strokeColor='+strokeHex(n,c)+';'+(n.shape==='text'?'':'fillColor='+(n.fill==='solid'?c+';fontColor='+onHex(n.color):tint(c,.86))+';')+(n.style==='dashed'?'dashed=1;':'');
       var lab=n.label+((n.fields||[]).length||(n.methods||[]).length?'':'')+(n.tech?'\n['+n.tech+']':'');
       var inner=hasInner(n)?' link="data:page/id,'+pid[v.path.concat([n.id]).join('/')]+'"':'';
       if(inner)st+='fontStyle=1;';
@@ -3112,7 +3121,7 @@ function excalidrawLevel(l){
   l.nodes.forEach(function(n){
     var w=nw(n),h=nh(n),c=hexOf(n.color),type=n.shape==='diamond'?'diamond':(n.shape==='circle'||n.shape==='initial'||n.shape==='final')?'ellipse':'rectangle',id='n_'+n.id,tid='t_'+n.id;
     var rows=(n.fields||[]).concat(n.methods||[]),txt=n.label+(n.tech?'\n['+n.tech+']':'')+(rows.length?'\n'+rows.join('\n'):'');
-    var el=base({id:id,type:type,x:n.x-w/2,y:n.y-h/2,width:w,height:h,strokeColor:c,backgroundColor:n.shape==='text'?'transparent':(n.fill==='solid'?c:tint(c,.86)),roundness:/rounded|pill|cloud|person/.test(n.shape)?{type:3}:null,boundElements:[{type:'text',id:tid}],strokeStyle:n.shape==='text'?'dotted':'solid'});
+    var el=base({id:id,type:type,x:n.x-w/2,y:n.y-h/2,width:w,height:h,strokeColor:strokeHex(n,c),backgroundColor:n.shape==='text'?'transparent':(n.fill==='solid'?c:tint(c,.86)),roundness:/rounded|pill|cloud|person/.test(n.shape)?{type:3}:null,boundElements:[{type:'text',id:tid}],strokeStyle:n.shape==='text'?'dotted':'solid'});
     els.push(el);byId[n.id]=el;
     els.push(base({id:tid,type:'text',x:n.x-w/2+8,y:n.y-10,width:w-16,height:20,text:txt,originalText:txt,fontSize:16,fontFamily:1,strokeColor:n.fill==='solid'?onHex(n.color):'#1e1e1e',textAlign:'center',verticalAlign:'middle',containerId:id,lineHeight:1.25,autoResize:true}));
   });

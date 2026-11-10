@@ -26,6 +26,7 @@ function onClick(e){
       if(sel.group){var g=l.groups.find(function(x){return x.id===sel.group;});if(g)g.color=arg;}
       else sel.nodes.forEach(function(id){var n=findNode(id);if(n)n.color=arg;});pop=null;});break;
     case 'set-fill':commit(function(){sel.nodes.forEach(function(id){var n=findNode(id);if(!n)return;if(arg==='solid')n.fill='solid';else delete n.fill;});});break;
+    case 'set-stroke':commit(function(){sel.nodes.forEach(function(id){var n=findNode(id);if(!n)return;if(arg==='auto')delete n.stroke;else n.stroke=arg;});});break;
     case 'theme':setTheme(THEMES[(THEMES.indexOf(theme)+1)%THEMES.length]);renderHeader();break;
     case 'set-icon':if(one)commit(function(){if(arg)one.icon=arg;else delete one.icon;pop=null;});break;
     case 'set-size':if(one)commit(function(){one.text=Object.assign({},one.text||{},{size:arg});if(arg==='m')delete one.text.size;if(!Object.keys(one.text).length)delete one.text;pop=null;});break;

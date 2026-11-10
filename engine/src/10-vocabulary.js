@@ -54,6 +54,8 @@ var REL={inherits:{st:'solid',end:'tri'},implements:{st:'dashed',end:'tri'},comp
 var SEQ={gap:70,first:84,step:54};
 var COLORS=['blue','teal','green','amber','orange','red','rose','violet','slate','neutral'];
 var FILLS=['tint','solid'];
+// outline: a palette colour, a hex value, or 'ink' (black in light theme, near-white in dark); solid fills default to ink
+var STROKE_SPECIAL=['ink'];
 var THEMES=['auto','light','dark'],THEME_NAMES={auto:'Theme: follows the system',light:'Theme: light',dark:'Theme: dark'};
 var KIND_TO_COLOR={core:'blue',data:'teal',infra:'amber',interface:'rose',external:'slate'};
 var FS={s:12.5,m:14.5,l:18};
@@ -69,6 +71,7 @@ function shapes(spec){
 }
 // Text colour on a solid fill: named colours use the theme's --on-solid; a hex colour gets white or near-black by luminance
 function onVar(c){if(/^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(c||'')){var h=c.length===4?c.replace(/[0-9a-f]/gi,'$&$&').slice(1):c.slice(1),v=parseInt(h,16);function ch(x){x/=255;return x<=.03928?x/12.92:Math.pow((x+.055)/1.055,2.4);}var L=.2126*ch(v>>16)+.7152*ch((v>>8)&255)+.0722*ch(v&255);return L>.2?'#121923':'#FFFFFF';}return 'var(--on-solid)';}
+function strokeVar(n){var s=n.stroke;if(s==='ink')return 'var(--ink)';if(s&&(COLORS.indexOf(s)>=0||/^#[0-9a-f]{3,8}$/i.test(s)))return colorVar(s);return n.fill==='solid'?'var(--ink)':'';}
 function uiIcon(name,size){size=size||18;var spec=UI[name]||ICONS[name];return '<svg class="ui-i" viewBox="0 0 24 24" width="'+size+'" height="'+size+'" aria-hidden="true">'+(spec?shapes(spec):'')+'</svg>';}
 function shapeIcon(shape,size){
   size=size||26;var n={shape:shape,w:SHAPES[shape].w,h:SHAPES[shape].h};

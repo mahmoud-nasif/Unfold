@@ -134,6 +134,8 @@ def _check_node(n, loc, rep, group_ids):
         rep.error(f"{loc}: colour must be one of {', '.join(sorted(COLORS))} or a hex value")
     if n.get("fill") is not None and n["fill"] not in FILLS:
         rep.error(f"{loc}: fill must be 'tint' or 'solid'")
+    if n.get("stroke") is not None and n["stroke"] != "ink" and not _valid_color(n["stroke"]):
+        rep.error(f"{loc}: stroke must be 'ink', a palette colour or a hex value")
     if n.get("role") is not None and n["role"] not in ROLES:
         rep.error(f"{loc}: role must be 'input' or 'output'")
     icon = n.get("icon")

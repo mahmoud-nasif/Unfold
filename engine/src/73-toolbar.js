@@ -24,7 +24,7 @@ function renderToolbar(){
       '<button class="ib" data-act="dup" title="Duplicate (Ctrl+D)" aria-label="Duplicate">'+uiIcon('copy')+'</button>'+
       '<button class="ib tb-danger" data-act="del" title="Delete (Del)" aria-label="Delete">'+uiIcon('trash')+'</button>';
     if(pop==='shape')p=popGrid(SHAPE_ORDER.map(function(s){return '<button data-act="set-shape" data-arg="'+s+'" title="'+SHAPES[s].name+'" aria-pressed="'+(n.shape===s)+'" style="width:40px;height:38px">'+shapeIcon(s,26)+'</button>';}).join(''),6,40);
-    if(pop==='color')p=colorPop(n.color,n.fill||'tint');
+    if(pop==='color')p=colorPop(n.color,n.fill||'tint',n.stroke);
     if(pop==='icon')p=popGrid('<button data-act="set-icon" data-arg="" title="No icon" style="width:30px;height:30px" aria-pressed="'+(!n.icon)+'">\u2205</button>'+Object.keys(ICONS).map(function(k){return '<button data-act="set-icon" data-arg="'+k+'" title="'+k+'" aria-pressed="'+(n.icon===k)+'" style="width:30px;height:30px">'+uiIcon(k,18)+'</button>';}).join(''),8,30)+
       '<label style="margin:8px 0 0">Or an emoji / letters<input data-field="icon" value="'+esc(n.icon&&!ICONS[n.icon]?n.icon:'')+'" maxlength="4"></label>';
     if(pop==='size')p='<div class="seg" role="group" aria-label="Text size">'+['s','m','l'].map(function(z){return '<button data-act="set-size" data-arg="'+z+'" aria-pressed="'+((tx.size||'m')===z)+'">'+{s:'Small',m:'Medium',l:'Large'}[z]+'</button>';}).join('')+'</div>';
@@ -110,10 +110,11 @@ function renderToolbar(){
   t.hidden=false;
   placeOverlays();
 }
-function colorPop(cur,fill){
+function colorPop(cur,fill,stroke){
   var g=popGrid(COLORS.map(function(c){return '<button data-act="set-color" data-arg="'+c+'" title="'+c+'" aria-label="'+c+'" aria-pressed="'+(cur===c)+'" style="width:32px;height:32px"><i class="swatch" style="--nc:var(--c-'+c+');width:20px;height:20px"></i></button>';}).join(''),5,32);
   if(fill===undefined)return g;
-  return g+'<div class="seg pop-fill" role="group" aria-label="Fill">'+FILLS.map(function(f){return '<button data-act="set-fill" data-arg="'+f+'" aria-pressed="'+((fill||'tint')===f)+'" title="'+(f==='solid'?'Fill the shape with the exact colour':'Light tint of the colour')+'">'+(f==='solid'?'Solid':'Tint')+'</button>';}).join('')+'</div>';
+  var outline='<div class="pop-h">Outline</div>'+popGrid(['auto','ink'].concat(COLORS).map(function(c){var on=(stroke||'auto')===c,sw=c==='auto'?'var(--c-'+(COLORS.indexOf(cur)>=0?cur:'blue')+')':c==='ink'?'var(--ink)':'var(--c-'+c+')';return '<button data-act="set-stroke" data-arg="'+c+'" title="Outline: '+(c==='auto'?'automatic (colour for tint, ink for solid)':c)+'" aria-label="Outline '+c+'" aria-pressed="'+on+'" style="width:32px;height:32px"><i class="swatch ring-sw" style="--nc:'+sw+';width:20px;height:20px">'+(c==='auto'?'A':'')+'</i></button>';}).join(''),6,32);
+  return g+outline+'<div class="seg pop-fill" role="group" aria-label="Fill">'+FILLS.map(function(f){return '<button data-act="set-fill" data-arg="'+f+'" aria-pressed="'+((fill||'tint')===f)+'" title="'+(f==='solid'?'Fill the shape with the exact colour':'Light tint of the colour')+'">'+(f==='solid'?'Solid':'Tint')+'</button>';}).join('')+'</div>';
 }
 function selBox(){
   var l=cur();

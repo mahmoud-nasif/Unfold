@@ -6,6 +6,7 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 
 ### Added
 - Solid fills: `"fill": "solid"` on a node paints it in exactly its colour, with a white or near-black label (chosen by contrast, also for hex colours). The colour menu has a **Tint / Solid** switch, and draw.io and Excalidraw exports keep the fill.
+- Outline colour: `stroke` sets a node's outline to a palette colour, a hex value or `ink`. Solid fills get an `ink` outline by default; the colour menu has an **Outline** row.
 - Ten palette colours: `green`, `orange` and `red` join the seven, in both themes.
 - Theme button in the top bar: follows the system, light or dark. The choice is remembered per viewer.
 - Eight anchors per box: the middle of each side and the four corners. Links start and end on an anchor (`fromSide` and `toSide` now accept `tr`, `br`, `bl` and `tl` as well), a corner anchor leaves along the side that faces the other end, and the **Ends** menu is a 3 × 3 picker laid out like the box. A link with bends leaves and arrives along the way its anchors face, so moving an end turns the arrow with it.

@@ -72,6 +72,7 @@ The root is a level, and so is every node's `children`.
 | `role`     | string   | `input` or `output` *for this level*. Draws a badge and halo, and appears in the legend. |
 | `color`    | string   | See [Colours and icons](#colours-and-icons). Defaults to blue. |
 | `fill`     | string   | `tint` (default): a light wash of the colour. `solid`: the shape is filled with exactly that colour, and its label and icon switch to white or near-black, whichever reads better. |
+| `stroke`   | string   | The outline: a palette colour, a hex value or `ink` (black in the light theme, near-white in the dark one). Leave it out for automatic: the node's colour for a tint, `ink` for a solid fill. |
 | `icon`     | string   | An icon name, or an emoji or 1 to 3 letters. Drawn above the label when the node is at least 88 units tall (not on diamonds or triangles). |
 | `source`   | string[] | Where it lives in code: `path/to/file.py`, `file.py:Class.method`, `file.py:42`, `file.py:10-30`, `pkg/module`. See [Source references](#source-references). Shown in the node's detail card. |
 | `note`     | string   | 1 to 3 sentences shown when someone clicks the node. |
