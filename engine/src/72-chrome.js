@@ -19,6 +19,7 @@ function renderHeader(){
   tb+='<button class="ib" data-act="search" title="Search (/)" aria-label="Search the map">'+uiIcon('search')+'</button>';
   if(!ed)tb+='<button class="btn" data-act="tours" title="Guided tour (T)">'+uiIcon('flag')+'<span>Tour</span></button><button class="ib" data-act="present" title="Present (P)" aria-label="Present">'+uiIcon('monitor')+'</button>';
   tb+='<button class="btn" data-act="export" title="Download page or data">'+uiIcon('export')+'<span>Export</span></button>';
+  tb+='<button class="ib" data-act="theme" title="'+THEME_NAMES[theme]+' (click to change)" aria-label="'+THEME_NAMES[theme]+'">'+uiIcon(theme==='auto'?'theme-auto':theme==='light'?'sun':'moon')+'</button>';
   tb+='<button class="ib" data-act="about" title="About this diagram and how to read it" aria-label="About this diagram">'+uiIcon('help')+'</button>'+
     '<button class="ib" data-act="info" title="Info: who made this map, and what it cost" aria-label="Map info" aria-pressed="'+infoOpen+'">'+uiIcon('info')+'</button>';
   $('#ss-topbar').innerHTML=tb;
@@ -40,12 +41,22 @@ function renderLevelbar(){
       (isSeq(l)?'':'<button class="ib" data-act="ldir" title="Layout direction: '+(dr==='LR'?'left to right':'top to bottom')+'" aria-label="Toggle layout direction">'+uiIcon(dr==='LR'?'dirLR':'dirTB')+'</button>'+
         '<button class="ib" data-act="lroute" title="Paths: '+ROUTE_NAMES[levelRoute(l)].toLowerCase()+' (click to change)" aria-label="Path style for this level">'+uiIcon('route-'+levelRoute(l))+'</button>')+
       '<button class="btn" data-act="tidy" title="Auto-arrange this level">'+uiIcon('tidy')+'<span>Tidy</span></button>';
-  }else{
-    h+='<span class="type-badge" title="'+esc(TYPE_HINTS[levelType(l)])+'">'+TYPE_NAMES[levelType(l)]+'</span>';
-    if(l.caption)h+='<p class="cap">'+esc(l.caption)+'</p>';
-    h+=legendChips(l);
   }
+  var li=$('#ss-levelinfo');
+  if(mode!=='edit'){
+    // view mode: no bottom bar; the level's type, caption and key sit quietly under the breadcrumbs
+    el.hidden=true;el.innerHTML='';
+    li.innerHTML='<span class="type-badge" title="'+esc(TYPE_HINTS[levelType(l)])+'">'+TYPE_NAMES[levelType(l)]+'</span>'+(l.caption?'<p class="cap">'+esc(l.caption)+'</p>':'')+legendChips(l);
+    li.hidden=false;return;
+  }
+  li.hidden=true;li.innerHTML='';
   el.innerHTML=h;el.hidden=false;
+}
+var THEME_KEY='unfold:theme';
+function setTheme(t){
+  theme=THEMES.indexOf(t)>=0?t:'auto';var r=document.documentElement;
+  if(theme==='auto')r.removeAttribute('data-theme');else r.setAttribute('data-theme',theme);
+  try{if(theme==='auto')localStorage.removeItem(THEME_KEY);else localStorage.setItem(THEME_KEY,theme);}catch(e){}
 }
 function renderLegend(){renderAbout();}
 function legendChips(l){

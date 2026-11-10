@@ -7,8 +7,8 @@ function worldIcon(icon,label,size,cx,cy){
 function nodeMarkup(n,l){
   var inner=showsInner(n),w=nw(n),h=nh(n),X=-w/2,Y=-h/2;
   var isSel=sel.nodes.indexOf(n.id)>=0;
-  var cls='node t-'+n.shape+(inner?' has-inner':'')+(isSel?' sel':'')+(n.role?' role-'+n.role:'')+(DIFF_TEXT[n.diff]?' diff-'+n.diff:'')+(n.confidence==='inferred'?' inferred':'')+(isPlanned(n)?' planned':'');
-  var s='<g class="'+cls+'" data-id="'+esc(n.id)+'" transform="translate('+n.x+' '+n.y+')" style="--nc:'+colorVar(n.color)+';--rc:'+roleVar(n.role)+'" tabindex="0" role="button" aria-label="'+esc(n.label)+(n.role?', '+n.role:'')+(inner?', has inner diagram':'')+'">';
+  var cls='node t-'+n.shape+(inner?' has-inner':'')+(isSel?' sel':'')+(n.role?' role-'+n.role:'')+(DIFF_TEXT[n.diff]?' diff-'+n.diff:'')+(n.confidence==='inferred'?' inferred':'')+(isPlanned(n)?' planned':'')+(n.fill==='solid'?' solid':'');
+  var s='<g class="'+cls+'" data-id="'+esc(n.id)+'" transform="translate('+n.x+' '+n.y+')" style="--nc:'+colorVar(n.color)+';--rc:'+roleVar(n.role)+(n.fill==='solid'?';--on:'+onVar(n.color):'')+(strokeVar(n)?';--ns:'+strokeVar(n):'')+'" tabindex="0" role="button" aria-label="'+esc(n.label)+(n.role?', '+n.role:'')+(inner?', has inner diagram':'')+'">';
   if(n.role&&n.shape!=='text')s+='<g class="ring">'+shapeSVG(n)+'</g>';
   if(inner&&n.shape!=='text')s+='<g class="stack" transform="translate(6 6)">'+shapeSVG(n)+'</g>';
   s+='<g class="body">'+shapeSVG(n)+'</g>';

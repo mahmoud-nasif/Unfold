@@ -57,7 +57,8 @@ SHAPES = frozenset({
     "hexagon", "cloud", "circle", "triangle", "text", "table", "image", "initial", "final",
     "class", "person", "node3d",
 })
-COLORS = frozenset({"blue", "teal", "amber", "rose", "violet", "slate", "neutral"})
+COLORS = frozenset({"blue", "teal", "green", "amber", "orange", "red", "rose", "violet", "slate", "neutral"})
+FILLS = frozenset({"tint", "solid"})
 LEVEL_TYPES = frozenset({"architecture", "process", "sequence", "state", "data",
                          "class", "c4", "deployment", "dependency", "tree", "behaviour", "timeline"})
 FLOW_TYPES = frozenset({"architecture", "process", "c4"})
@@ -131,6 +132,10 @@ def _check_node(n, loc, rep, group_ids):
         rep.error(f"{loc}: unknown shape '{shape}' (use one of {', '.join(sorted(SHAPES))})")
     if n.get("color") is not None and not _valid_color(n["color"]):
         rep.error(f"{loc}: colour must be one of {', '.join(sorted(COLORS))} or a hex value")
+    if n.get("fill") is not None and n["fill"] not in FILLS:
+        rep.error(f"{loc}: fill must be 'tint' or 'solid'")
+    if n.get("stroke") is not None and n["stroke"] != "ink" and not _valid_color(n["stroke"]):
+        rep.error(f"{loc}: stroke must be 'ink', a palette colour or a hex value")
     if n.get("role") is not None and n["role"] not in ROLES:
         rep.error(f"{loc}: role must be 'input' or 'output'")
     icon = n.get("icon")

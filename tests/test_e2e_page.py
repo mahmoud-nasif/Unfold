@@ -2,6 +2,7 @@
 
 Run with:  pytest -m e2e   (needs: pip install playwright && playwright install chromium)
 """
+import json
 import sys
 from pathlib import Path
 
@@ -79,7 +80,7 @@ def test_loads_cleanly_with_roles_and_legend(page):
     assert nodes(page) == 9
     assert page.locator("#ss-scene .node.role-input").count() == 2
     assert page.locator("#ss-scene .node.role-output").count() == 1
-    assert "In" in page.locator("#ss-levelbar .keys-inline").inner_text()
+    assert "In" in page.locator("#ss-levelinfo .keys-inline").inner_text()
     assert page.errors == []
 
 
@@ -97,9 +98,9 @@ def test_zoom_into_process_level_and_back(page):
     # Given the overview, when a module is clicked
     page.click('.node[data-id="build"]')
     page.wait_for_timeout(SETTLE)
-    # Then its process level shows, with the type in the level bar
+    # Then its process level shows, with the type under the breadcrumbs
     assert "unfold.py build" in crumbs(page)
-    assert "Process" in page.locator("#ss-levelbar").inner_text()
+    assert "Process" in page.locator("#ss-levelinfo").inner_text()
     assert page.locator('.node[data-id="errs"].t-diamond').count() == 1
     # When Escape is pressed, then we are back
     page.keyboard.press("Escape")
@@ -301,7 +302,7 @@ def test_hover_shows_one_line_hint(page):
 
 def test_sequence_level_draws_lifelines_and_ordered_messages(page):
     page.click('.node[data-id="request"]'); page.wait_for_timeout(SETTLE)
-    assert "Sequence" in page.locator("#ss-levelbar").inner_text()
+    assert "Sequence" in page.locator("#ss-levelinfo").inner_text()
     assert page.locator("#ss-scene .lifeline").count() == 7
     nums = page.eval_on_selector_all("#ss-scene .seqnum text", "els => els.map(e => +e.textContent)")
     assert nums == list(range(1, 13))
@@ -318,7 +319,7 @@ def test_data_level_draws_tables_with_fields(page):
 def test_state_level_has_initial_marker(page):
     page.click('.node[data-id="template"]'); page.wait_for_timeout(SETTLE)
     page.click('.node[data-id="modes"]'); page.wait_for_timeout(SETTLE)
-    assert "State machine" in page.locator("#ss-levelbar").inner_text()
+    assert "State machine" in page.locator("#ss-levelinfo").inner_text()
     assert page.locator("#ss-scene .node.t-initial").count() == 1
 
 
@@ -373,3 +374,120 @@ def test_upload_media_to_image_node(editor, tmp_path):
     assert img.count() == 1 and img.get_attribute("href").startswith("data:image/png")
     d = data(editor)
     assert any(n.get("shape") == "image" and n["label"] == "shot" for n in d["root"]["nodes"])
+
+# ---------- colours, fills, theme and the level bar ----------
+
+def resolved(pg, css_color):
+    # the colour a CSS value resolves to, as the browser reports it (rgb(...))
+    return pg.evaluate("c => { const d = document.createElement('div'); d.style.color = c; document.body.appendChild(d);"
+                       " const v = getComputedStyle(d).color; d.remove(); return v; }", css_color)
+
+
+def fill_of(pg, selector):
+    return pg.eval_on_selector(selector, "e => getComputedStyle(e).fill")
+
+
+def test_view_mode_has_no_bottom_bar_and_shows_the_level_under_the_breadcrumbs(page):
+    # Given the example in view mode, when it loads, then there is no bottom bar,
+    # and the level's type and caption sit under the breadcrumbs
+    assert page.locator("#ss-levelbar").is_hidden()
+    info = page.locator("#ss-levelinfo")
+    assert info.is_visible() and "Architecture" in info.inner_text()
+    # When a part is opened, then the inner level's type replaces it
+    page.click('.node[data-id="build"]'); page.wait_for_timeout(SETTLE)
+    assert page.locator("#ss-levelbar").is_hidden() and "Process" in info.inner_text()
+    # When switching to edit mode, then the bottom bar is back with its level tools and the line is gone
+    page.click('[data-act="mode-edit"]'); page.wait_for_timeout(300)
+    assert page.locator("#ss-levelbar .type-sel").is_visible() and info.is_hidden()
+
+
+def test_colour_popover_offers_ten_colours_and_a_fill_switch(editor):
+    editor.click('.node[data-id="db"]')
+    editor.click('[data-act="pop"][data-arg="color"]')
+    assert editor.locator('[data-act="set-color"]').count() == 10
+    assert editor.locator('[data-act="set-fill"]').count() == 2
+
+
+def test_solid_fill_paints_the_exact_colour_with_readable_text(editor):
+    # Given a node, when it is set to red with a solid fill
+    editor.click('.node[data-id="db"]')
+    editor.click('[data-act="pop"][data-arg="color"]')
+    editor.click('[data-act="set-color"][data-arg="red"]')
+    editor.click('[data-act="pop"][data-arg="color"]')
+    editor.click('[data-act="set-fill"][data-arg="solid"]')
+    # Then the shape is filled with exactly the palette red, the label turns white, and the data records it
+    sh = '.node[data-id="db"] .body .sh'
+    assert fill_of(editor, sh) == resolved(editor, "var(--c-red)")
+    assert fill_of(editor, '.node[data-id="db"] .lbl') == "rgb(255, 255, 255)"
+    db = next(n for n in data(editor)["root"]["nodes"] if n["id"] == "db")
+    assert db["color"] == "red" and db["fill"] == "solid"
+    # When switched back to tint, then the field is removed and the fill is a light tint again
+    editor.click('[data-act="set-fill"][data-arg="tint"]')
+    db = next(n for n in data(editor)["root"]["nodes"] if n["id"] == "db")
+    assert "fill" not in db and fill_of(editor, sh) != resolved(editor, "var(--c-red)")
+
+
+@pytest.mark.parametrize("hex_color,text", [("#F5D90A", "rgb(18, 25, 35)"), ("#1A7F37", "rgb(255, 255, 255)")])
+def test_solid_hex_colour_gets_contrasting_text(browser, tmp_path, hex_color, text):
+    # Given a page whose node has a solid hex colour, when it renders, then the fill is that colour
+    # and the label takes whichever of near-black or white reads better on it
+    d = json.loads((ROOT / "engine" / "sample.json").read_text())
+    n0 = d["root"]["nodes"][0]
+    n0["color"], n0["fill"] = hex_color, "solid"
+    out = tmp_path / "solid.html"
+    out.write_text(story.embed(d, (ROOT / "skill" / "unfold" / "assets" / "template.html").read_text()), encoding="utf-8")
+    c, pg = open_page(browser, out.as_uri())
+    sel = f'.node[data-id="{n0["id"]}"]'
+    assert fill_of(pg, sel + " .body .sh") == resolved(pg, hex_color)
+    assert fill_of(pg, sel + " .lbl") == text
+    c.close()
+
+
+def test_theme_button_cycles_auto_light_dark_and_is_remembered(browser):
+    # Given a viewer whose system prefers light, when they press the theme button twice, then the page is dark
+    c, pg = open_page(browser, color_scheme="light")
+    root_theme = lambda: pg.evaluate("document.documentElement.getAttribute('data-theme')")
+    assert root_theme() is None
+    pg.click('[data-act="theme"]'); assert root_theme() == "light"
+    pg.click('[data-act="theme"]'); assert root_theme() == "dark"
+    dark_paper = pg.evaluate("getComputedStyle(document.body).backgroundColor")
+    assert dark_paper == "rgb(18, 25, 35)"
+    # When the page is reloaded, then it stays dark
+    pg.reload(); pg.wait_for_timeout(1000)
+    assert root_theme() == "dark"
+    # When pressed once more, then it follows the system again
+    pg.click('[data-act="theme"]'); assert root_theme() is None
+    assert pg.errors == []
+    c.close()
+
+
+def unselect(pg):
+    # Escape closes the open menu first, then clears the selection (a selected node shows the focus outline)
+    for _ in range(3):
+        if pg.locator("#ss-scene .node.sel").count() == 0:
+            return
+        pg.keyboard.press("Escape")
+
+
+def test_solid_fill_gets_an_ink_outline_and_the_outline_can_be_chosen(editor):
+    # Given a node with a solid fill, when no outline is set, then its outline is the ink colour, not the fill colour
+    sh = '.node[data-id="db"] .body .sh'
+    stroke = lambda: editor.eval_on_selector(sh, "e => getComputedStyle(e).stroke")
+    editor.click('.node[data-id="db"]')
+    editor.click('[data-act="pop"][data-arg="color"]')
+    editor.click('[data-act="set-fill"][data-arg="solid"]')
+    unselect(editor)
+    assert stroke() == resolved(editor, "var(--ink)")
+    # When the outline is set to amber, then it is amber and the data records it
+    editor.click('.node[data-id="db"]')
+    editor.click('[data-act="pop"][data-arg="color"]')
+    editor.click('[data-act="set-stroke"][data-arg="amber"]')
+    unselect(editor)
+    assert stroke() == resolved(editor, "var(--c-amber)")
+    db = next(n for n in data(editor)["root"]["nodes"] if n["id"] == "db")
+    assert db["stroke"] == "amber"
+    # When set back to automatic, then the field is removed
+    editor.click('.node[data-id="db"]')
+    editor.click('[data-act="pop"][data-arg="color"]')
+    editor.click('[data-act="set-stroke"][data-arg="auto"]')
+    assert "stroke" not in next(n for n in data(editor)["root"]["nodes"] if n["id"] == "db")

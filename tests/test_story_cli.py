@@ -109,7 +109,9 @@ def test_self_edge_is_an_error(d):
 
 @pytest.mark.parametrize("field,value,needle", [
     ("shape", "star", "unknown shape"),
-    ("color", "orange", "colour must be"),
+    ("color", "magenta", "colour must be"),
+    ("fill", "gradient", "fill must be"),
+    ("stroke", "chartreuse", "stroke must be"),
     ("role", "sink", "role must be"),
     ("source", "svc.py", "'source' must be a list"),
     ("text", {"size": "xl"}, "text.size"),
@@ -126,6 +128,26 @@ def test_invalid_node_fields(d, field, value, needle):
 def test_hex_colour_is_accepted(d):
     d["root"]["nodes"][2]["color"] = "#2B7A4B"
     assert errs(d) == []
+
+
+@pytest.mark.parametrize("stroke", ["ink", "red", "#112233"])
+def test_outline_colours_are_accepted(d, stroke):
+    d["root"]["nodes"][2]["stroke"] = stroke
+    assert errs(d) == []
+
+
+@pytest.mark.parametrize("color", ["red", "orange", "green"])
+def test_new_palette_colours_are_accepted(d, color):
+    # Given a node using one of the added palette colours with a solid fill, when validated, then there is no error
+    d["root"]["nodes"][2]["color"] = color
+    d["root"]["nodes"][2]["fill"] = "solid"
+    assert errs(d) == []
+
+
+def test_validator_and_engine_agree_on_fills():
+    eng = (ROOT / "engine" / "src" / "10-vocabulary.js").read_text()
+    fills = set(re.findall(r"'([a-z]+)'", re.search(r"var FILLS=\[(.*?)\]", eng).group(1)))
+    assert fills == set(story.FILLS)
 
 
 def test_half_a_position_is_an_error(d):

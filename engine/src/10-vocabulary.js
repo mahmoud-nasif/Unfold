@@ -10,7 +10,8 @@ var UI={
   group:['r 3 5 18 14 3','M7 9h5'],ungroup:['r 3 5 18 14 3','M3 9h18'],info:['c 12 12 9','M12 11v6','M12 7.5h.01'],
   bold:['M7 5h6a3.5 3.5 0 0 1 0 7H7z','M7 12h7a3.5 3.5 0 0 1 0 7H7z'],italic:['M10 5h8','M6 19h8','M14 5l-4 14'],
   tidy:['r 3 4 6 5 1','r 15 4 6 5 1','r 9 15 6 5 1','M6 9v2h12V9','M12 11v4'],reverse:['M7 7h13l-4-4','M17 17H4l4 4'],
-  chev:['M6 9l6 6 6-6'],help:['c 12 12 9','M9.5 9a2.5 2.5 0 1 1 3.5 2.3c-.6.3-1 .9-1 1.7','M12 17h.01'],
+  chev:['M6 9l6 6 6-6'],sun:['c 12 12 4','M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4'],
+  moon:['M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z'],'theme-auto':['c 12 12 9','M12 3a9 9 0 0 1 0 18z'],help:['c 12 12 9','M9.5 9a2.5 2.5 0 1 1 3.5 2.3c-.6.3-1 .9-1 1.7','M12 17h.01'],
   arrowR:['M4 12h16','M14 6l6 6-6 6'],arrowB:['M4 12h16','M14 6l6 6-6 6','M10 6l-6 6 6 6'],arrowN:['M4 12h16'],
   lineFlow:['M3 12h3M9 12h3M15 12h3'],lineSolid:['M3 12h18'],lineDot:['M4 12h.01M9 12h.01M14 12h.01M19 12h.01'],
   dirLR:['M3 12h14','M13 8l4 4-4 4','r 18 9 3 6 1'],dirTB:['M12 3v14','M8 13l4 4 4-4','r 9 18 6 3 1'],
@@ -51,7 +52,11 @@ var BT_GLYPH={sequence:'\u2192',selector:'?',parallel:'\u21c9',decorator:'\u25c7
 var BT_NAMES={sequence:'Sequence: runs children in order until one fails',selector:'Selector: tries children in order until one succeeds',parallel:'Parallel: runs children together',decorator:'Decorator: changes its child\u2019s result',action:'Action',condition:'Condition'};
 var REL={inherits:{st:'solid',end:'tri'},implements:{st:'dashed',end:'tri'},composition:{st:'solid',start:'dia'},aggregation:{st:'solid',start:'odia'},association:{st:'solid',end:'open'},dependency:{st:'dashed',end:'open'}};
 var SEQ={gap:70,first:84,step:54};
-var COLORS=['blue','teal','amber','rose','violet','slate','neutral'];
+var COLORS=['blue','teal','green','amber','orange','red','rose','violet','slate','neutral'];
+var FILLS=['tint','solid'];
+// outline: a palette colour, a hex value, or 'ink' (black in light theme, near-white in dark); solid fills default to ink
+var STROKE_SPECIAL=['ink'];
+var THEMES=['auto','light','dark'],THEME_NAMES={auto:'Theme: follows the system',light:'Theme: light',dark:'Theme: dark'};
 var KIND_TO_COLOR={core:'blue',data:'teal',infra:'amber',interface:'rose',external:'slate'};
 var FS={s:12.5,m:14.5,l:18};
 
@@ -64,6 +69,9 @@ function shapes(spec){
     return '<path d="'+s+'"/>';
   }).join('');
 }
+// Text colour on a solid fill: named colours use the theme's --on-solid; a hex colour gets white or near-black by luminance
+function onVar(c){if(/^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(c||'')){var h=c.length===4?c.replace(/[0-9a-f]/gi,'$&$&').slice(1):c.slice(1),v=parseInt(h,16);function ch(x){x/=255;return x<=.03928?x/12.92:Math.pow((x+.055)/1.055,2.4);}var L=.2126*ch(v>>16)+.7152*ch((v>>8)&255)+.0722*ch(v&255);return L>.2?'#121923':'#FFFFFF';}return 'var(--on-solid)';}
+function strokeVar(n){var s=n.stroke;if(s==='ink')return 'var(--ink)';if(s&&(COLORS.indexOf(s)>=0||/^#[0-9a-f]{3,8}$/i.test(s)))return colorVar(s);return n.fill==='solid'?'var(--ink)':'';}
 function uiIcon(name,size){size=size||18;var spec=UI[name]||ICONS[name];return '<svg class="ui-i" viewBox="0 0 24 24" width="'+size+'" height="'+size+'" aria-hidden="true">'+(spec?shapes(spec):'')+'</svg>';}
 function shapeIcon(shape,size){
   size=size||26;var n={shape:shape,w:SHAPES[shape].w,h:SHAPES[shape].h};

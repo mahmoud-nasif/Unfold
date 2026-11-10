@@ -176,7 +176,7 @@ def test_map_diff_marks_added_removed_and_changed(browser, tmp_path):
     for k in ("added", "changed", "removed"):
         assert pg.locator(f"#ss-scene .node.diff-{k}").count() == 1
     assert pg.locator("#ss-scene .edge.diff-added").count() == 1
-    assert "New" in pg.locator("#ss-levelbar").inner_text()
+    assert "New" in pg.locator("#ss-levelinfo").inner_text()
     c.close()
 
 
